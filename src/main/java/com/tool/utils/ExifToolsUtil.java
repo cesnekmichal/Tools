@@ -5,25 +5,17 @@ import jakarta.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import jakarta.annotation.Nullable;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -34,8 +26,6 @@ import org.json.JSONObject;
  */
 public class ExifToolsUtil {
     
-    private static File ExIfToolExe = null;
-    private static final String exiftool_exe = "exiftool.exe";
     private static String json_out = "-j";
     
     /** Vrátí cestu k souboru: exiftool.exe */
@@ -50,16 +40,34 @@ public class ExifToolsUtil {
             return null;
         }
     }
+    private static File ExIfToolExe = null;
+    private static final String exiftool_exe = "exiftool.exe";
+    
+    /** Vrátí cestu k souboru: ffmpeg.exe */
+    public synchronized static File getFFmpegExe(){
+        if(FFmpegExe!=null) return FFmpegExe;
+        try {
+            FFmpegExe = Resources.ffmpeg.getTempSplitFile();
+            return FFmpegExe;
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
+        }
+    }
+    private static File FFmpegExe = null;
+    private static final String ffmpeg_exe = "ffmpeg.exe";
     
     public enum FileType{
         /** File Type : JPEG, MIME Type : image/jpeg. */
         JPG("JPEG","image/jpeg"),
-        /** File Type : PNG, MIME Type : image/png. */
+        /** FileType : PNG, MIMEType : image/png. */
         PNG("PNG","image/png"),
-        /** File Type : MP4, MIME Type : video/mp4, Major Brand : MP4 v2 [ISO 14496-14]. */
+        /** FileType : MP4, MIMEType : video/mp4, Major Brand : MP4 v2 [ISO 14496-14]. */
         MP4("MP4","video/mp4"),
-        /** File Type : MOV, MIME Type : video/quicktime, Major Brand : Apple QuickTime (.MOV/QT). */
+        /** FileType : MOV, MIMEType : video/quicktime, Major Brand : Apple QuickTime (.MOV/QT). */
         MOV("MOV","video/quicktime"),
+        /** FileType : MP3, MIMEType : audio/mpeg. */
+        MP3("MP3","audio/mpeg"),
         
         /** File Type : Win64 EXE, MIME Type : application/octet-stream. */
         EXE64("Win64 EXE","application/octet-stream"),
@@ -104,6 +112,7 @@ public class ExifToolsUtil {
             case PNG: return setExIfDateTime_PNG(mediaFile,date);
             case MP4: 
             case MOV: return setExIfDateTime_MP4_MOV(mediaFile,date);
+            case MP3: return setFFmpegDateTime_MP3(mediaFile,date);
         }
         return null;
     }
@@ -115,6 +124,7 @@ public class ExifToolsUtil {
             case PNG: return getExIfDateTime_PNG(mediaFile);
             case MP4: 
             case MOV: return getExIfDateTime_MP4_MOV(mediaFile);
+            case MP3: return getExIfDateTime_MP3(mediaFile);
         }
         return null;
     }
@@ -152,8 +162,8 @@ public class ExifToolsUtil {
         */
         //</editor-fold>
         String std_out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-time:all",json_out,mediaFile.getAbsolutePath());
-        LinkedHashMap<String, String> map = getJSONValues(std_out, "DateTimeOriginal","CreateDate","ModifyDate");
-        Date minDate = map.values().stream().map(value -> parseDate(std_out)).filter(Objects::nonNull).min((Date o1, Date o2) -> o1.compareTo(o2)).orElse(null);
+        LinkedHashMap<String, String> map = getJSONValues(std_out, "DateTimeOriginal","CreateDate","ModifyDate","FileModifyDate");
+        Date minDate = map.values().stream().map(value -> parseDate(value)).filter(Objects::nonNull).min((Date o1, Date o2) -> o1.compareTo(o2)).orElse(null);
         return minDate;
     }
     public static Date setExIfDateTime_JPG(File mediaFile, Date date){
@@ -163,6 +173,7 @@ public class ExifToolsUtil {
         String dateValue      = new SimpleDateFormat(dateFormat)   .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
+        commands.add("-overwrite_original");
         commands.add("-FileModifyDate="+dateValueUTC);
       //commands.add("-FileAccessDate="+dateValueUTC);//Warning: Sorry, FileAccessDate is not writable
         commands.add("-FileCreateDate="+dateValueUTC);
@@ -180,7 +191,6 @@ public class ExifToolsUtil {
       //commands.add("-TrackModifyDate="+dateValueUTC);
       //commands.add("-MediaCreateDate="+dateValueUTC);
       //commands.add("-MediaModifyDate="+dateValueUTC);
-        commands.add("-overwrite_original");
         commands.add(mediaFile.getAbsolutePath());
         String out = ExecuteUtil.exec(commands.toArray(String[]::new));
         if(out!=null && out.contains("Warning")){
@@ -211,12 +221,12 @@ public class ExifToolsUtil {
         String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
+        commands.add("-overwrite_original");
         commands.add("-FileModifyDate="+dateValueUTC);
       //commands.add("-FileAccessDate="+dateValueUTC);//Warning: Sorry, FileAccessDate is not writable
         commands.add("-FileCreateDate="+dateValueUTC);
         commands.add("-CreateDate="+dateValue);
         commands.add("-ModifyDate="+dateValue);
-        commands.add("-overwrite_original");
         commands.add(mediaFile.getAbsolutePath());
         String out = ExecuteUtil.exec(commands.toArray(String[]::new));
         if(out!=null && out.contains("Warning")){
@@ -278,6 +288,7 @@ public class ExifToolsUtil {
         String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
+        commands.add("-overwrite_original");
         commands.add("-api");
         commands.add("QuickTimeUTC");
         commands.add("-FileModifyDate="+dateValueUTC);
@@ -299,7 +310,87 @@ public class ExifToolsUtil {
         commands.add("-SubSecTime=");
         commands.add("-SubSecTimeOriginal=");
         commands.add("-SubSecTimeDigitized=");
+        commands.add(mediaFile.getAbsolutePath());
+        String out = ExecuteUtil.exec(commands.toArray(String[]::new));
+        if(out!=null && out.contains("Warning")){
+            System.err.println(mediaFile+"\n"+out);
+        }
+        return out!=null && out.contains("1 image files updated") ? date : null;
+    }
+    
+    public static Date getExIfDateTime_MP3(File mediaFile){
+        //<editor-fold defaultstate="collapsed" desc="Samples">
+        /*
+            [{
+              "SourceFile": "C:/Users/Michal/Documents/NetBeansProjects/Tool.NBp/run/./copy",
+              "FileModifyDate"  : "2025:08:27 08:26:51+02:00",
+              "FileAccessDate"  : "2025:08:27 08:27:49+02:00",
+              "FileCreateDate"  : "2025:08:27 08:27:49+02:00",
+              "RecordingTime"   : "2015:11:27 11:50:38",
+              "Date"            : "2015-11-27 11:50:38",
+              "DateTimeOriginal": "2015:11:27 11:50:38"
+            }] 
+        */
+        //</editor-fold>
+        String std_out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-time:all",json_out,mediaFile.getAbsolutePath());
+        LinkedHashMap<String, String> map = getJSONValues(std_out, "DateTimeOriginal","RecordingTime","FileModifyDate","MediaModifyDate","FileCreateDate","Date");
+        Date minDate = map.values().stream().map(value -> parseDate(value)).filter(Objects::nonNull).min((Date o1, Date o2) -> o1.compareTo(o2)).orElse(null);
+        return minDate;
+    }
+    
+    public static Date setFFmpegDateTime_MP3(File mediaFile, Date date){
+        if(date==null) return null;
+        //ffmpeg -i pisnicka.mp3 -metadata "date=2025-08-27T10:00:00" -metadata "TDAT=2025-08-27T10:00:00" -codec copy pisnicka.tmp.mp3 && move /Y pisnicka.tmp.mp3 pisnicka.mp3
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        String dateT = formatter.format(date.toInstant().atZone(ZoneId.systemDefault()));
+        List<String> commands = new ArrayList<>();
+        commands.add(getFFmpegExe().getAbsolutePath());
+        commands.add("-i");
+        commands.add(mediaFile.getAbsolutePath());
+        commands.add("-metadata");
+        commands.add("date="+dateT);
+        commands.add("-metadata");
+        commands.add("TDAT="+dateT);
+        commands.add("-codec");
+        commands.add("copy");
+        String tempFile = FileUtil.changeExtension(mediaFile.getAbsolutePath(), "tmp.mp3");
+        new File(tempFile).deleteOnExit();
+        commands.add(tempFile);
+//        commands.add("&&");
+//        commands.add("move");
+//        commands.add("/Y");
+//        commands.add(FileUtil.changeExtension(mediaFile.getAbsolutePath(), "tmp"));
+//        commands.add(mediaFile.getAbsolutePath());
+        String out = ExecuteUtil.exec(commands.toArray(String[]::new));
+        if(out!=null && out.contains("Error")){
+            System.err.println(mediaFile+"\n"+out);
+        }
+        boolean success = out!=null && out.contains("Output #0, mp3, to '"+tempFile+"':");
+        if(success){
+            try {
+                Files.move(new File(tempFile).toPath(), mediaFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                success = false;
+            }
+        }
+        return success ? date : null;
+    }
+    @Deprecated
+    /** exiftools.exe - Writing of MP3 files is not yet supported  */
+    public static Date setExIfDateTime_MP3(File mediaFile, Date date){
+        if(date==null) return null;
+        String dateValueUTC = new SimpleDateFormat(dateFormatUTC).format(date);
+        String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
+        List<String> commands = new ArrayList<>();
+        commands.add(getExIfToolExe().getAbsolutePath());
         commands.add("-overwrite_original");
+        commands.add("-FileModifyDate="+dateValueUTC);
+      //commands.add("-FileAccessDate="+dateValueUTC);//Warning: Sorry, FileAccessDate is not writable
+        commands.add("-FileCreateDate="+dateValueUTC);
+      //commands.add("-RecordingTime="+dateValue);//Warning: Sorry, RecordingTime is not writable
+        commands.add("-Date="+dateValue);
+        commands.add("-DateTimeOriginal="+dateValue);
         commands.add(mediaFile.getAbsolutePath());
         String out = ExecuteUtil.exec(commands.toArray(String[]::new));
         if(out!=null && out.contains("Warning")){
@@ -352,7 +443,7 @@ public class ExifToolsUtil {
         LinkedHashMap<String,String> map = new LinkedHashMap<>();
         for (String key : keys) {
             if(obj.has(key)){
-                map.put(key, obj.getString(key));
+                map.put(key, obj.get(key).toString());
             }
         }
         return map;
@@ -377,8 +468,8 @@ public class ExifToolsUtil {
         
     public static void main(String[] args) throws IOException {
         //exiftool.exe -time:all "fotka.jpg"
-        File file = new File("c:\\Users\\Michal\\Downloads\\exiftool-13.34_64\\sample.mov");
-        File copy = new File("c:\\Users\\Michal\\Downloads\\exiftool-13.34_64\\copy.mov");
+        File file = new File("sample_media/sample.mp3");
+        File copy = new File("copy."+FileUtil.getExtension(file.getPath()));
         
         String out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",file.getAbsolutePath());
         System.out.println(out);

@@ -3,6 +3,7 @@ package com.tool.utils;
 import java.awt.Image;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -193,6 +194,22 @@ public class ResourceUtil {
     }    
     
     /**
+     * Najde soubory ve zdrojovem kodu
+     * @param fileName Název souboru s příponou (např. "soubor.png")
+     * @param classInSamePackageAsFile Třída která se vyskytuje ve stejném balíku 
+     * jako "soubor.png".
+     * @return data souboru
+     */
+    public static byte[] getBytes(String[] fileNames,Class classInSamePackageAsFile) {
+        try(InputStream inputStream = getStream(fileNames, classInSamePackageAsFile)){
+            byte[] bytes = inputStream.readAllBytes();
+            return bytes;
+        } catch (IOException ex) {
+            return null;
+        }
+    }    
+    
+    /**
      * Najde soubor ve zdrojovem kodu
      * @param fileName Název souboru s příponou (např. "soubor.png")
      * @param classInSamePackageAsFile Třída která se vyskytuje ve stejném balíku 
@@ -203,6 +220,23 @@ public class ResourceUtil {
         String path = getPATH(fileName, classInSamePackageAsFile);
         InputStream inputStream = ResourceUtil.class.getResourceAsStream(path);
         return inputStream;
+    }
+    
+    /**
+     * Najde soubory ve zdrojovem kodu
+     * @param fileNames Názvy souborů s příponou (např. "soubor.png")
+     * @param classInSamePackageAsFile Třída která se vyskytuje ve stejném balíku 
+     * jako "soubor.png".
+     * @return InputStream k souboru
+     */
+    public static InputStream getStream(String[] fileNames,Class classInSamePackageAsFile) {
+        List<InputStream> iss = new ArrayList<>();
+        for (String fileName : fileNames) {
+            InputStream inputStream = getStream(fileName, classInSamePackageAsFile);
+            iss.add(inputStream);
+        }
+        SequenceInputStream sis = new SequenceInputStream(Collections.enumeration(iss));
+        return sis;
     }
     
     /**

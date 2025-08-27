@@ -1,2 +1,6 @@
 /target/
 /run/
+/nbproject/
+
+# Maven Shade Plugin
+dependency-reduced-pom.xml
