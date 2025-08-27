@@ -102,6 +102,7 @@ public class MenuDialog extends javax.swing.JFrame {
     private void btn_RenameByExIfOrLastModificationTimeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_RenameByExIfOrLastModificationTimeActionPerformed
         
         for (File file : new File(".").listFiles()) {
+            if(file.isDirectory()) continue;
             ExifToolsUtil.FileType fileType = ExifToolsUtil.FileType.getFileType(file);
             if(!fileType.isMedia()) continue;
             Date date = ExifToolsUtil.getExIfDateTime(file);

@@ -16,11 +16,7 @@ import java.util.concurrent.CompletableFuture;
 public class ExecuteUtil {
 
     public static String exec(String... command) {
-        return execAsync(command).join();
-    }
-    public static CompletableFuture<String> execAsync(String... command) {
-        return CompletableFuture.supplyAsync(() -> {
-            StringBuilder result = new StringBuilder();
+        StringBuilder result = new StringBuilder();
             try {
                 ProcessBuilder builder = new ProcessBuilder(command);
                 builder.redirectErrorStream(true);
@@ -33,13 +29,18 @@ public class ExecuteUtil {
                         result.append(line).append(System.lineSeparator());
                     }
                 }
-
-                process.waitFor();
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    System.err.println("exitCode: "+exitCode);
+                }
             } catch (Exception e) {
                 result.append("Chyba: ").append(e.getMessage());
             }
-            return result.toString();
-        });
+        return result.toString();
+    }
+    
+    public static CompletableFuture<String> execAsync(String... command) {
+        return CompletableFuture.supplyAsync(()->exec(command));
     }
     
     /** Otevře umístění souboru. */

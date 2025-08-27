@@ -90,6 +90,7 @@ public class ExifToolsUtil {
             };
         }
         public static @Nonnull FileType getFileType(File mediaFile){
+            if(mediaFile.isDirectory()) return UNKNOWN;
             /*
                 [{
                   "SourceFile": "c:/Users/Michal/Downloads/exiftool-13.34_64/sample.png",
