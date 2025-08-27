@@ -55,7 +55,6 @@ public class ExifToolsUtil {
         }
     }
     private static File FFmpegExe = null;
-    private static final String ffmpeg_exe = "ffmpeg.exe";
     
     public enum FileType{
         /** File Type : JPEG, MIME Type : image/jpeg. */
@@ -84,6 +83,12 @@ public class ExifToolsUtil {
             this.fileType = fileType;
             this.MIMEType = MIMEType;
         }
+        public boolean isMedia(){
+            return switch (this) {
+                case JPG, PNG, MP4, MOV, MP3 -> true;
+                default -> false;
+            };
+        }
         public static @Nonnull FileType getFileType(File mediaFile){
             /*
                 [{
@@ -107,6 +112,7 @@ public class ExifToolsUtil {
     
     public static Date setExIfDateTime(File mediaFile, Date date){
         FileType fileType = FileType.getFileType(mediaFile);
+        if(!fileType.isMedia()) return null;
         switch (fileType) {
             case JPG: return setExIfDateTime_JPG(mediaFile,date);
             case PNG: return setExIfDateTime_PNG(mediaFile,date);
@@ -119,6 +125,7 @@ public class ExifToolsUtil {
     
     public static Date getExIfDateTime(File mediaFile){
         FileType fileType = FileType.getFileType(mediaFile);
+        if(!fileType.isMedia()) return null;
         switch (fileType) {
             case JPG: return getExIfDateTime_JPG(mediaFile);
             case PNG: return getExIfDateTime_PNG(mediaFile);

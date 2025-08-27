@@ -4,6 +4,10 @@ import com.tool.utils.ExifToolsUtil;
 import com.tool.utils.FileUtil;
 import java.awt.Dimension;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -40,6 +44,7 @@ public class MenuDialog extends javax.swing.JFrame {
     private void initComponents() {
 
         btn_RetimeByName = new javax.swing.JButton();
+        btn_RenameByExIfOrLastModificationTime = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -50,13 +55,22 @@ public class MenuDialog extends javax.swing.JFrame {
             }
         });
 
+        btn_RenameByExIfOrLastModificationTime.setText("RenameByExIfOrLastModificationTime");
+        btn_RenameByExIfOrLastModificationTime.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btn_RenameByExIfOrLastModificationTimeActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(btn_RetimeByName)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(btn_RetimeByName)
+                    .addComponent(btn_RenameByExIfOrLastModificationTime))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -64,6 +78,8 @@ public class MenuDialog extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(btn_RetimeByName)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btn_RenameByExIfOrLastModificationTime)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -82,6 +98,24 @@ public class MenuDialog extends javax.swing.JFrame {
         }
         
     }//GEN-LAST:event_btn_RetimeByNameActionPerformed
+
+    private void btn_RenameByExIfOrLastModificationTimeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_RenameByExIfOrLastModificationTimeActionPerformed
+        
+        for (File file : new File(".").listFiles()) {
+            ExifToolsUtil.FileType fileType = ExifToolsUtil.FileType.getFileType(file);
+            if(!fileType.isMedia()) continue;
+            Date date = ExifToolsUtil.getExIfDateTime(file);
+            if(date==null) continue;
+            String newFileName = fileDateFormat.format(date)+"."+FileUtil.getExtension(file.getName());
+            if(file.getName().equals(newFileName)) continue;
+            try {
+                Files.move(file.toPath(), Paths.get(file.getParent(), newFileName), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+        
+    }//GEN-LAST:event_btn_RenameByExIfOrLastModificationTimeActionPerformed
 
     /**
      * @param args the command line arguments
@@ -109,6 +143,7 @@ public class MenuDialog extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btn_RenameByExIfOrLastModificationTime;
     private javax.swing.JButton btn_RetimeByName;
     // End of variables declaration//GEN-END:variables
 }
