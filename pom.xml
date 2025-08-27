@@ -11,7 +11,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.release>21</maven.compiler.release>
-        <exec.mainClass>com.tool.utils.ExifToolsUtil</exec.mainClass>
+        <exec.mainClass>com.tool.MenuDialog</exec.mainClass>
     </properties>
     <build>
         <finalName>Tool</finalName>

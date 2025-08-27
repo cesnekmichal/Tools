@@ -9,7 +9,6 @@ import com.tool.utils.ExecuteUtil;
 import com.tool.utils.ResourceUtil;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
@@ -30,14 +29,16 @@ public enum Resources {
              ffmpeg.004
              ffmpeg.005
              ffmpeg.crc""".split("\\R")),
-    ffprobe ("ffprobe.exe"),
     ;
+    
     private Resources(String name) {
         this.names = new String[]{name};
     }
+    
     private Resources(String... names) {
         this.names = names;
     }
+    
     private String[] names;
     
     public byte[] getBytes(){
