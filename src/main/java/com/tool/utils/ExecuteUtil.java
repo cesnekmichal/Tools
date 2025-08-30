@@ -8,6 +8,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -15,6 +22,36 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ExecuteUtil {
 
+    public static void runInThread(Runnable runnable){
+        new Thread(runnable).start();
+    }
+    
+    public static <U> List<U> runsAsync(List<Supplier<U>> suppliers,BiConsumer<U,Throwable> whenPartialComplete){
+        return runsAsync(suppliers.toArray(Supplier[]::new),whenPartialComplete);
+    }
+    
+    public static <U> List<U> runsAsync(Supplier<U>[] suppliers,BiConsumer<U,Throwable> whenPartialComplete){
+        class run{
+            static <U> U get(CompletableFuture<U> cf){
+                try {
+                    return cf.get();
+                } catch (InterruptedException | ExecutionException ex) {
+                    ex.printStackTrace();
+                    return null;
+                }
+            }
+        }
+        try (ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) {
+            List<CompletableFuture> futuresList = new ArrayList<>();
+            for (Supplier<U> supplier : suppliers) {
+                futuresList.add(CompletableFuture.supplyAsync(supplier,executor).whenComplete(whenPartialComplete));
+            }
+            CompletableFuture<Void> futures = CompletableFuture.allOf(futuresList.toArray(CompletableFuture[]::new));
+            futures.join();
+            return futuresList.stream().map((cf) -> (U) run.get(cf)).collect(Collectors.toList());
+        }
+    }
+    
     public static String exec(String... command) {
         StringBuilder result = new StringBuilder();
             try {

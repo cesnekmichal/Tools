@@ -1,4 +1,4 @@
-package com.tool;
+package com.tool.gui.cs;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;

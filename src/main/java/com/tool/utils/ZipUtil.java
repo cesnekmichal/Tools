@@ -21,7 +21,7 @@ public class ZipUtil {
     public static Path unzipToTempDir(byte[] zipBytes) throws IOException {
         // 1. Vytvoření unikátního dočasného adresáře pro rozbalený obsah
         Path tempDir = Files.createTempDirectory("unzipped-");
-        System.out.println("Obsah bude rozbalen do: " + tempDir.toAbsolutePath());
+        //System.out.println("Obsah bude rozbalen do: " + tempDir.toAbsolutePath());
 
         // Použití try-with-resources pro automatické uzavření streamů
         try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
@@ -52,7 +52,7 @@ public class ZipUtil {
             }
         }
         
-        System.out.println("Rozbalení dokončeno úspěšně.");
+        //System.out.println("Rozbalení dokončeno úspěšně.");
         return tempDir;
     }
 

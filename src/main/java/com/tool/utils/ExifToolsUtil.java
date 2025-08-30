@@ -2,6 +2,7 @@ package com.tool.utils;
 
 import com.tool.utils.rescs.Resources;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -11,11 +12,14 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -124,6 +128,10 @@ public class ExifToolsUtil {
         return null;
     }
     
+    public static Supplier<Date> getExIfDateTimeAsync(File mediaFile){
+        return () -> getExIfDateTime(mediaFile);
+    }
+    
     public static Date getExIfDateTime(File mediaFile){
         FileType fileType = FileType.getFileType(mediaFile);
         if(!fileType.isMedia()) return null;
@@ -176,9 +184,9 @@ public class ExifToolsUtil {
     }
     public static Date setExIfDateTime_JPG(File mediaFile, Date date){
         if(date==null) return null;
-        String dateValueMsUTC = new SimpleDateFormat(dateFormatMsUTC).format(date);
-        String dateValueUTC   = new SimpleDateFormat(dateFormatUTC).format(date);
-        String dateValue      = new SimpleDateFormat(dateFormat)   .format(date);
+        String dateValueMsUTC = DateFormat.exiftoolMilisUTC.format(date);
+        String dateValueUTC   = DateFormat.exiftoolUTC     .format(date);
+        String dateValue      = DateFormat.exiftool        .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
         commands.add("-overwrite_original");
@@ -225,8 +233,8 @@ public class ExifToolsUtil {
     }
     public static Date setExIfDateTime_PNG(File mediaFile, Date date){
         if(date==null) return null;
-        String dateValueUTC = new SimpleDateFormat(dateFormatUTC).format(date);
-        String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
+        String dateValueUTC = DateFormat.exiftoolUTC.format(date);
+        String dateValue    = DateFormat.exiftool   .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
         commands.add("-overwrite_original");
@@ -291,9 +299,9 @@ public class ExifToolsUtil {
     }
     public static Date setExIfDateTime_MP4_MOV(File mediaFile, Date date){
         if(date==null) return null;
-        String dateValueMs  = new SimpleDateFormat(dateFormatMs).format(date);
-        String dateValueUTC = new SimpleDateFormat(dateFormatUTC).format(date);
-        String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
+        String dateValueMs  = DateFormat.exiftoolMilis.format(date);
+        String dateValueUTC = DateFormat.exiftoolUTC  .format(date);
+        String dateValue    = DateFormat.exiftool     .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
         commands.add("-overwrite_original");
@@ -388,8 +396,8 @@ public class ExifToolsUtil {
     /** exiftools.exe - Writing of MP3 files is not yet supported  */
     public static Date setExIfDateTime_MP3(File mediaFile, Date date){
         if(date==null) return null;
-        String dateValueUTC = new SimpleDateFormat(dateFormatUTC).format(date);
-        String dateValue    = new SimpleDateFormat(dateFormat)   .format(date);
+        String dateValueUTC = DateFormat.exiftoolUTC.format(date);
+        String dateValue    = DateFormat.exiftool   .format(date);
         List<String> commands = new ArrayList<>();
         commands.add(getExIfToolExe().getAbsolutePath());
         commands.add("-overwrite_original");
@@ -407,23 +415,54 @@ public class ExifToolsUtil {
         return out!=null && out.contains("1 image files updated") ? date : null;
     }
     
-    private static final String dateFormatMsUTC = "yyyy:MM:dd HH:mm:ss.SSSXXX";
-    private static final String dateFormatMs    = "yyyy:MM:dd HH:mm:ss.SS";
-    private static final String dateFormatUTC   = "yyyy:MM:dd HH:mm:ssXXX";
-    private static final String dateFormat      = "yyyy:MM:dd HH:mm:ss";
-    
-    public static String detectFormat(String input) {
-        if (input.matches("\\d{4}:\\d{2}:\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\+\\d{2}:\\d{2}")) {
-            return "yyyy:MM:dd HH:mm:ss.SSSXXX"; // s milisekundami a časovou zónou
-        } else 
-        if (input.matches("\\d{4}:\\d{2}:\\d{2} \\d{2}:\\d{2}:\\d{2}\\+\\d{2}:\\d{2}")) {
-            return "yyyy:MM:dd HH:mm:ssXXX"; // bez milisekund, s časovou zónou
-        } else 
-        if(input.matches("\\d{4}:\\d{2}:\\d{2} \\d{2}:\\d{2}:\\d{2}")) {
-            return "yyyy:MM:dd HH:mm:ss"; // bez časové zóny
-        } else {
-            return null; // neznámý formát
+    public static enum DateFormat {
+        // Jednotlivé formáty definované jako konstanty
+        exiftoolMilisUTC("yyyy:MM:dd HH:mm:ss.SSSXXX"),
+        exiftoolMilis   ("yyyy:MM:dd HH:mm:ss.SS"),
+        exiftoolUTC     ("yyyy:MM:dd HH:mm:ssXXX"),
+        exiftool        ("yyyy:MM:dd HH:mm:ss"),
+        fileName        ("yyyy,MM,dd-HH,mm,ss");
+        public final String pattern;
+        DateFormat(String pattern) {
+            this.pattern = pattern;
         }
+        public boolean equals(String dateTime){
+            return this==detect(dateTime);
+        }
+        public String format(Date date, String nullValue){
+            if(date==null) return nullValue;
+            return format(date);
+        }
+        public String format(Date date){
+            return new SimpleDateFormat(pattern).format(date);
+        }
+        public static DateFormat detect(String dateTime){
+            for (DateFormat value : values()) {
+                try {
+                    TemporalAccessor date = DateTimeFormatter.ofPattern(value.pattern).parse(dateTime);
+                    if(date!=null) return value;
+                } catch (DateTimeParseException  ex) {
+                    continue;
+                }
+            }
+            return null;
+        }
+        public @Nonnull Date parseEx(String dateTime) throws ParseException, NumberFormatException{
+            return new SimpleDateFormat(pattern).parse(dateTime);
+        }
+        public @Nullable Date parse(String dateTime){
+            try {
+                return new SimpleDateFormat(pattern).parse(dateTime);
+            } catch (ParseException ex) {
+                ex.printStackTrace();
+                return null;
+            }
+        }
+    }
+    
+    public static @Nullable String detectFormat(String dateTime) {
+        DateFormat format = DateFormat.detect(dateTime);
+        return format!=null ? format.pattern : null;
     }    
     
     public static Date parseDate(String value){
