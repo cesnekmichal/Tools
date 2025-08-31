@@ -2,8 +2,8 @@
 <launch4jConfig>
   <dontWrapJar>false</dontWrapJar>
   <headerType>gui</headerType>
-  <jar>C:\Users\Michal\OneDrive - Ridge point\Documents\NetBeansProjects\Tool.NBp\target\Tool-wi-deps.jar</jar>
-  <outfile>C:\Users\Michal\OneDrive - Ridge point\Documents\NetBeansProjects\Tool.NBp\release\MediaTool.exe</outfile>
+  <jar>../target/Tool-wi-deps.jar</jar>
+  <outfile>MediaTool.exe</outfile>
   <errTitle></errTitle>
   <cmdLine></cmdLine>
   <chdir>.</chdir>
@@ -13,7 +13,7 @@
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
-  <icon>C:\Users\Michal\OneDrive - Ridge point\Documents\NetBeansProjects\Tool.NBp\release\MediaTool.ico</icon>
+  <icon>MediaTool.ico</icon>
   <jre>
     <path>%JAVA_HOME%;%PATH%</path>
     <requiresJdk>false</requiresJdk>
