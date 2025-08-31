@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.swing.ImageIcon;
 
 /**
  *
@@ -29,6 +30,9 @@ public enum Resources {
              ffmpeg.004
              ffmpeg.005
              ffmpeg.crc""".split("\\R")),
+    refresh ("refresh.png"),
+    play    ("play.png"),
+    MediaTool("MediaTool.png"),
     ;
     
     private Resources(String name) {
@@ -40,6 +44,13 @@ public enum Resources {
     }
     
     private String[] names;
+    
+    public ImageIcon getImageIcon(){
+        return ResourceUtil.getImageIcon(this.names[0], Resources.class);
+    }
+    public ImageIcon getImageIcon(int size){
+        return ResourceUtil.getScaledImageIcon(this.names[0], Resources.class, size);
+    }
     
     public byte[] getBytes(){
         return ResourceUtil.getBytes(names[0], Resources.class);

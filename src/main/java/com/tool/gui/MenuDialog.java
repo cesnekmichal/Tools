@@ -1,39 +1,33 @@
 package com.tool.gui;
 
 import com.tool.gui.cs.Actions;
+import static com.tool.gui.cs.Actions.Convert_MOV_to_MP4;
+import static com.tool.gui.cs.Actions.Retime_By_Name;
 import com.tool.gui.cs.ActionsConsumer;
 import com.tool.utils.ExecuteUtil;
 import com.tool.utils.ExifToolsUtil;
+import com.tool.utils.ExifToolsUtil.FileAndDate;
+import com.tool.utils.ExifToolsUtil.FileAndType;
+import com.tool.utils.ExifToolsUtil.FileFromTo;
+import com.tool.utils.ExifToolsUtil.FileType;
 import com.tool.utils.FileUtil;
-import jakarta.annotation.Nullable;
+import com.tool.utils.rescs.Resources;
 import java.awt.Dimension;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.swing.ComboBoxModel;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import javax.swing.event.ListDataListener;
+import static com.tool.gui.cs.Actions.Rename_By_ExIfDateTime;
+import com.tool.utils.StringUtil;
+import java.util.stream.IntStream;
+import static com.tool.gui.cs.Actions.ReConvert_MP4_1080p;
 
 /**
  *
@@ -41,38 +35,82 @@ import javax.swing.event.ListDataListener;
  */
 public class MenuDialog extends javax.swing.JFrame {
     
-
+    private interface AutoCloseableX extends AutoCloseable{
+        @Override
+        void close();
+    }
+    
+    private class AutoCloseableResource{
+        Runnable onOpen;
+        Runnable onClose;
+        public AutoCloseableResource(Runnable onOpen,Runnable onClose) {
+            this.onOpen = onOpen;
+            this.onClose = onClose;
+        }
+        public AutoCloseableX open(){
+            onOpen.run();
+            return onClose::run;
+        }
+    }
+    
+    AutoCloseableResource awtLocker;
     
     /**
      * Creates new form Menu
      */
     public MenuDialog() {
         initComponents();
-        setTitle("Tool "+" ("+new File("").getAbsolutePath()+")");
-        setSize(new Dimension(550, 400));
+        setTitle("MediaTool "+" ("+new File("").getAbsolutePath()+")");
+        setSize(new Dimension(635, 450));
         setLocationRelativeTo(null);
+        
+        setIconImage(Resources.MediaTool.getImageIcon().getImage());
         
         field_Actions.addActionsConsumer(new ActionsConsumer() {
             @Override
             public void accept(Actions action) {
-                if(action==null) return;
-                switch (action) {
-                    case RetimeByName -> {
-                        ExecuteUtil.runInThread(()->viewAction_RetimeByName());
-                    }
-                }
+                viewAction(action);
             }
         });
         
         // 1. Propojení vertikálních posuvníků
         jScrollPane2.getVerticalScrollBar().setModel(jScrollPane1.getVerticalScrollBar().getModel());
 
+        btn_Refresh.setText("");
+        btn_Refresh.setIcon(Resources.refresh.getImageIcon(16));
+        btn_Play.setText("");
+        btn_Play.setIcon(Resources.play.getImageIcon(16));
         
+        label_Left.setText("");
+        label_Right.setText("");
+        
+        awtLocker = new AutoCloseableResource(() -> {
+            //On Open
+            field_Actions.setEnabled(false);
+            btn_Refresh.setEnabled(false);
+            btn_Play.setEnabled(false);
+            field_Left.setEnabled(false);
+            field_Right.setEnabled(false);
+        }, () -> {
+            //On Close
+            field_Actions.setEnabled(true);
+            btn_Refresh.setEnabled(true);
+            btn_Play.setEnabled(true);
+            field_Left.setEnabled(true);
+            field_Right.setEnabled(true);
+        });
     }
 
-    private File[] getOperatedFiles(Actions actions){
+    public static List<Supplier<FileAndType>> getFileTypesAsync(){
+        return Stream.of(new File(".").listFiles())
+                    .filter(File::isFile)
+                    .map((file)->ExifToolsUtil.getFileAndTypeAsync(file))
+                .collect(Collectors.toList());
+    }
+    
+    private static File[] getOperatedFiles(Actions actions){
         switch (actions) {
-            case RetimeByName -> {
+            case Retime_By_Name -> {
                 return Stream.of(new File(".").listFiles())
                     .filter((f)->f.isFile())
                     .filter((f)->ExifToolsUtil.DateFormat.fileName.equals(FileUtil.removeExtension(f.getName())))
@@ -82,32 +120,296 @@ public class MenuDialog extends javax.swing.JFrame {
         return new File[0];
     }
     
-    private void viewAction_RetimeByName(){
-        File[] files = getOperatedFiles(Actions.RetimeByName);
-        String left = Stream.of(files).map((f)->f.getName()).collect(Collectors.joining("\n"));
-        field_Left.setText(left);
-        field_Left.setEditable(false);
-        progressBarInit(files.length+1);
-        progressBarIncrement();
-        List<Supplier<Date>> suppliers = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfDateTimeAsync(file)).collect(Collectors.toList());
-        List<Date> dates = ExecuteUtil.runsAsync(suppliers,whenPartialComplete);
-        progressBarReset();
-        String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
-        field_Right.setText(right);
-        field_Right.setEditable(false);
+    private void viewAction(Actions action){
+        if(action==null) return;
+        switch (action) {
+            case Rename -> {
+                ExecuteUtil.runInThread(()->viewAction_Rename());
+            }
+            case Rename_By_ExIfDateTime -> {
+                ExecuteUtil.runInThread(()->viewAction_Rename_By_ExIfDateTime());
+            }
+            case Retime_By_Name -> {
+                ExecuteUtil.runInThread(()->viewAction_Retime_By_Name());
+            }
+            case Convert_MOV_to_MP4 -> {
+                ExecuteUtil.runInThread(()->viewAction_Convert_MOV_to_MP4());
+            }
+            case ReConvert_MP4_1080p -> {
+                ExecuteUtil.runInThread(()->viewAction_ReConvert_MP4_1080p());
+            }
+        }        
     }
     
-    private void sleep(Duration d){
-        try {
-            Thread.sleep(d);
-        } catch (InterruptedException ex) {}
+    private void doAction(Actions action){
+        if(action==null) return;
+        switch (action) {
+            case Rename -> {
+                ExecuteUtil.runInThread(()->doAction_Rename());
+            }
+            case Rename_By_ExIfDateTime -> {
+                ExecuteUtil.runInThread(()->doAction_Rename_By_ExIfDateTime());
+            }
+            case Retime_By_Name -> {
+                ExecuteUtil.runInThread(()->doAction_Retime_By_Name());
+            }
+            case Convert_MOV_to_MP4 -> {
+                ExecuteUtil.runInThread(()->doAction_Convert_MOV_to_MP4());
+            }
+            case ReConvert_MP4_1080p -> {
+                ExecuteUtil.runInThread(()->doAction_ReConvert_MP4_1080p());
+            }
+        }
     }
     
-    private void doAction_RetimeByName(){
-        
+    private void viewAction_Retime_By_Name(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            File[] files = getOperatedFiles(Actions.Retime_By_Name);
+            String left = Stream.of(files).map((f)->f.getName()).collect(Collectors.joining("\n"));
+            progressBarInit(files.length+1);
+            progressBarIncrement();
+            List<Supplier<Date>> suppliers = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfDateTimeAsync(file)).collect(Collectors.toList());
+            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
+            progressBarReset();
+            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+        }
+    }
+    
+    private void doAction_Retime_By_Name(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            File[] files = getOperatedFiles(Actions.Retime_By_Name);
+            Map<File, Date> filesDates = Stream.of(files).collect(Collectors.toMap((file)->file, (file)->ExifToolsUtil.DateFormat.fileName.parse(FileUtil.removeExtension(file.getName()))));
+            //Stream.of(files).map((file)->).collect(Collectors.toList());
+            progressBarInit(files.length+1);
+            progressBarIncrement();
+            List<Supplier<Date>> suppliers = filesDates.entrySet().stream().map((entry)->ExifToolsUtil.setExIfDateTimeAsync(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
+            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
     }
 
-    final BiConsumer<Date, Throwable> whenPartialComplete = (Date t, Throwable u) -> {
+    private void viewAction_Rename(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFiles = getFileTypesAsync();
+            progressBarInit(suppliersFiles.size());
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFiles,progressBarIncrement);
+            List<File> files = fileAndTypes.stream().filter((fat)->fat.fileType.isMedia()).map((fat)->fat.file).toList();
+            String left_right = files.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename From");
+            field_Left.setText(left_right);
+            field_Left.setEditable(false);
+            label_Right.setText("Filename To (edit this filenames)");
+            field_Right.setText(left_right);
+            field_Right.setEditable(true);
+            progressBarReset();
+        }
+    }
+    private void doAction_Rename(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<String> fromFileNames = List.of(field_Left.getText().split("\\R"));
+            List<String> toFileNames   = List.of(field_Right.getText().split("\\R"));
+            if(fromFileNames.size()!=toFileNames.size()) return;
+            List<FileFromTo> filesFromTo = IntStream.range(0, fromFileNames.size()).boxed()
+                    .map((Integer idx)->new FileFromTo(new File(fromFileNames.get(idx)),new File(toFileNames.get(idx))))
+                .toList();
+            List<File> toFiles = filesFromTo.stream().map(new Function<FileFromTo, File> () {
+                @Override
+                public File apply(FileFromTo fft) {
+                    progressBarIncrement();
+                    boolean success = FileUtil.rename(fft.from, fft.to, StandardCopyOption.REPLACE_EXISTING);
+                    return success ? fft.to : fft.from;
+                }
+            }).toList();
+            String left = toFiles.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename From");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            progressBarReset();
+        }
+    }
+    private void viewAction_Rename_By_ExIfDateTime(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFiles = getFileTypesAsync();
+            progressBarInit(suppliersFiles.size()*2);
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFiles,progressBarIncrement);
+            List<File> files = fileAndTypes.stream().filter((fat)->fat.fileType.isMedia()).map((fat)->fat.file).toList();
+            String left = files.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            List<Supplier<Date>> suppliers = files.stream().map((file)->ExifToolsUtil.getExIfDateTimeAsync(file)).toList();
+            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
+            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+    
+    private void doAction_Rename_By_ExIfDateTime(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
+            progressBarInit(suppliersFATs.size()*3);
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFATs,progressBarIncrement);
+            List<File> files = fileAndTypes.stream().filter((fat)->fat.fileType.isMedia()).map((fat)->fat.file).toList();
+            List<Supplier<FileAndDate>> suppliersFADs = files.stream().map((file)->ExifToolsUtil.getExIfFileAndDateTimeAsync(file)).toList();
+            List<FileAndDate> fileAndDates = ExecuteUtil.runsAsync(suppliersFADs,progressBarIncrement);
+            List<FileAndDate> filesRenamed = fileAndDates.stream().map((new Function<FileAndDate, FileAndDate>() {
+                @Override
+                public FileAndDate apply(FileAndDate fad) {
+                    progressBarIncrement();
+                    if(fad.date==null) return fad;
+                    File target = new File(fad.file.getParentFile(),ExifToolsUtil.DateFormat.fileName.format(fad.date)+"."+FileUtil.getExtension(fad.file.getName()));
+                    if(fad.file.equals(target)) return fad;
+                    if(target.exists()) target = FileUtil.getUnique(target.getParentFile(), target.getName());
+                    boolean success = FileUtil.rename(fad.file, target, StandardCopyOption.REPLACE_EXISTING);
+                    return success ? new FileAndDate(target,fad.date) : fad;
+                }
+            })).toList();
+            String left = filesRenamed.stream().map((fad)->fad.file.getName()).collect(Collectors.joining("\n"));
+            String right = filesRenamed.stream().map((fad)->ExifToolsUtil.DateFormat.exiftool.format(fad.date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }    
+    
+    private void viewAction_Convert_MOV_to_MP4(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
+            progressBarInit(suppliersFATs.size());
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFATs,progressBarIncrement);
+            List<File> filesMOV = fileAndTypes.stream().filter((fat)->fat.fileType==FileType.MOV).map((fat)->fat.file).toList();
+            List<File> filesMP4 = fileAndTypes.stream().filter((fat)->fat.fileType==FileType.MP4).map((fat)->fat.file).toList();
+            
+            String left = filesMOV.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            String right = filesMP4.stream().filter((f)->new File(FileUtil.changeExtension(f.getAbsolutePath(), "mov")).exists())
+                                           .map((f)->f.getName()).collect(Collectors.joining("\n"));
+            label_Left.setText("MOV files");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("MP4 files (same filename as MOV)");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+
+    private void doAction_Convert_MOV_to_MP4(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
+            progressBarInit(suppliersFATs.size()*2);
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFATs,progressBarIncrement);
+            List<Supplier<FileFromTo>> supplersFiles = fileAndTypes.stream().map(new Function<FileAndType, Supplier<FileFromTo>>() {
+                @Override
+                public Supplier<FileFromTo> apply(FileAndType fat) {
+                    if(fat.fileType!=ExifToolsUtil.FileType.MOV) return ()->new FileFromTo(fat.file,null);
+                    File fileMOV = fat.file;
+                    File fileMP4 = new File(fat.file.getParentFile(),FileUtil.removeExtension(fat.file.getName())+".mp4");
+                    return () -> {
+                        Date date = ExifToolsUtil.getExIfDateTime(fileMOV);
+                        FileFromTo fft = ExifToolsUtil.convertMOVtoMP4(fileMOV, fileMP4);
+                        if(date!=null && fft.to!=null) {
+                            ExifToolsUtil.setExIfDateTime(fft.to, date);
+                        }
+                        return fft;
+                    };
+                }
+            }).toList();
+            List<FileFromTo> filesFromTo = ExecuteUtil.runsAsync(supplersFiles,progressBarIncrement,2);
+            List<File> filesMOV = filesFromTo.stream().filter((fft)->fft.to!=null).map((fft)->fft.from).toList();
+            List<File> filesMP4 = filesFromTo.stream().filter((fft)->fft.to!=null).map((fft)->fft.to).toList();
+            String left = filesMOV.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            String right = filesMP4.stream().filter((f)->new File(FileUtil.changeExtension(f.getAbsolutePath(), "mov")).exists())
+                                           .map((f)->f.getName()).collect(Collectors.joining("\n"));
+            label_Left.setText("MOV files");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("MP4 files (same filename as MOV)");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }        
+    }
+    
+    private void viewAction_ReConvert_MP4_1080p(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
+            progressBarInit(suppliersFATs.size());
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFATs,progressBarIncrement);
+            List<File> filesMP4 = fileAndTypes.stream().filter((fat)->fat.fileType==FileType.MP4).map((fat)->fat.file).toList();
+            
+            String left = filesMP4.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            String right = filesMP4.stream().map((f)->StringUtil.formatFileSize(f.length(), 1)).collect(Collectors.joining("\n"));
+            
+            label_Left.setText("MP4 files: "+filesMP4.size());
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Size: "+StringUtil.formatFileSize(filesMP4.stream().mapToLong((f)->f.length()).sum(), 1));
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+
+    private void doAction_ReConvert_MP4_1080p(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
+            progressBarInit(suppliersFATs.size());
+            List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFATs,progressBarIncrement);
+            fileAndTypes = fileAndTypes.stream().filter((fat)->fat.fileType==FileType.MP4).toList();
+            List<Supplier<FileFromTo>> supplersFiles = fileAndTypes.stream().map(new Function<FileAndType, Supplier<FileFromTo>>() {
+                @Override
+                public Supplier<FileFromTo> apply(FileAndType fat) {
+                    if(fat.fileType!=ExifToolsUtil.FileType.MP4) return ()->new FileFromTo(fat.file,null);
+                    File fileMP4from = fat.file;
+                    File fileMP4to = new File(fat.file.getParentFile(),FileUtil.removeExtension(fat.file.getName())+".tmp.mp4");
+                    return () -> {
+                        Date date = ExifToolsUtil.getExIfDateTime(fileMP4from);
+                        FileFromTo fft = ExifToolsUtil.reConvertMP4toMP41080p(fileMP4from, fileMP4to);
+                        if(date!=null && fft.to!=null) {
+                            ExifToolsUtil.setExIfDateTime(fft.to, date);
+                        }
+                        if(fft.to!=null){
+                            boolean success = FileUtil.rename(fft.to, fft.from, StandardCopyOption.REPLACE_EXISTING);
+                            return success ? new FileFromTo(fileMP4from,fileMP4from) : new FileFromTo(fileMP4from,null);
+                        }
+                        return fft;
+                    };
+                }
+            }).toList();
+            progressBarInit(fileAndTypes.size()+1);
+            progressBarIncrement();
+            List<FileFromTo> filesFromTo = ExecuteUtil.runsAsync(supplersFiles,progressBarIncrement,4);
+            List<File> filesMP4 = fileAndTypes.stream().filter((fat)->fat.fileType==FileType.MP4).map((fat)->fat.file).toList();
+            String left = filesMP4.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
+            String right = filesMP4.stream().map((f)->StringUtil.formatFileSize(f.length(), 1)).collect(Collectors.joining("\n"));
+            label_Left.setText("MP4 files: "+filesMP4.size());
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Size: "+StringUtil.formatFileSize(filesMP4.stream().mapToLong((f)->f.length()).sum(), 1));
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }        
+    }
+    
+    final Runnable progressBarIncrement = () -> {
         progressBarIncrement();
     };
     
@@ -132,10 +434,10 @@ public class MenuDialog extends javax.swing.JFrame {
         SwingUtilities.invokeLater(()->progressBarRepaint());
     }
     private void progressBarRepaint(){
-        jProgressBar1.setMinimum(0);
-        jProgressBar1.setMaximum(progressBarMaxValue.get());
-        jProgressBar1.setValue  (progressBarValue.get());
-        jProgressBar1.repaint();
+        progressBar.setMinimum(0);
+        progressBar.setMaximum(progressBarMaxValue.get());
+        progressBar.setValue  (progressBarValue.get());
+        progressBar.repaint();
     }
     
     /**
@@ -147,56 +449,85 @@ public class MenuDialog extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        btn_RetimeByName = new javax.swing.JButton();
-        btn_RenameByExIfOrLastModificationTime = new javax.swing.JButton();
-        jSplitPane1 = new javax.swing.JSplitPane();
+        jLabel1 = new javax.swing.JLabel();
+        field_Actions = new com.tool.gui.cs.ActionsComboBox();
+        btn_Refresh = new javax.swing.JButton();
+        btn_Play = new javax.swing.JButton();
+        jPanel3 = new javax.swing.JPanel();
+        label_Left = new javax.swing.JLabel();
+        label_Right = new javax.swing.JLabel();
         jScrollPane1 = new javax.swing.JScrollPane();
         field_Left = new javax.swing.JTextArea();
         jScrollPane2 = new javax.swing.JScrollPane();
         field_Right = new javax.swing.JTextArea();
-        jLabel1 = new javax.swing.JLabel();
-        field_Actions = new com.tool.gui.cs.ActionsComboBox();
-        jProgressBar1 = new javax.swing.JProgressBar();
-        jButton1 = new javax.swing.JButton();
-
-        btn_RetimeByName.setText("RetimeByName");
-        btn_RetimeByName.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btn_RetimeByNameActionPerformed(evt);
-            }
-        });
-
-        btn_RenameByExIfOrLastModificationTime.setText("RenameByExIfOrLastModificationTime");
-        btn_RenameByExIfOrLastModificationTime.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btn_RenameByExIfOrLastModificationTimeActionPerformed(evt);
-            }
-        });
+        progressBar = new javax.swing.JProgressBar();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jSplitPane1.setDividerLocation(250);
+        jLabel1.setText("Akce");
+
+        btn_Refresh.setText("Refresh");
+        btn_Refresh.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btn_RefreshActionPerformed(evt);
+            }
+        });
+
+        btn_Play.setText("Play");
+        btn_Play.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btn_PlayActionPerformed(evt);
+            }
+        });
+
+        label_Left.setText("label_Left");
+        label_Left.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 10, 0, 0));
+
+        label_Right.setText("label_Right");
+        label_Right.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
         field_Left.setColumns(20);
         field_Left.setRows(5);
         jScrollPane1.setViewportView(field_Left);
 
-        jSplitPane1.setLeftComponent(jScrollPane1);
-
         field_Right.setColumns(20);
         field_Right.setRows(5);
         jScrollPane2.setViewportView(field_Right);
 
-        jSplitPane1.setRightComponent(jScrollPane2);
-
-        jLabel1.setText("Akce");
-
-        jButton1.setText("Re");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
-            }
-        });
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 301, Short.MAX_VALUE)
+                            .addComponent(label_Left))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(label_Right)
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 302, Short.MAX_VALUE))
+                        .addGap(14, 14, 14)))
+                .addGap(0, 0, 0))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGap(4, 4, 4)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(label_Left)
+                    .addComponent(label_Right))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 690, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
+        );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -204,81 +535,44 @@ public class MenuDialog extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 494, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(jButton1)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(jProgressBar1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap())
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(btn_Refresh)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(btn_Play)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel1)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                    .addComponent(btn_Refresh)
                     .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton1))
+                    .addComponent(jLabel1)
+                    .addComponent(btn_Play))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 564, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jProgressBar1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void btn_RetimeByNameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_RetimeByNameActionPerformed
-        
-        try (ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) {
-            List<CompletableFuture> futuresList = new ArrayList<>();
-            for (File file : new File(".").listFiles()) {
-                if(file.isDirectory()) continue;
-                String fileNameWoExt = FileUtil.removeExtension(file.getName());
-                //Ověříme dekodovatelnost Data z názvu souboru
-                Date date = ExifToolsUtil.DateFormat.fileName.parse(fileNameWoExt);
-                if(date==null) continue;
-                futuresList.add(CompletableFuture.runAsync(() -> {
-                    ExifToolsUtil.setExIfDateTime(file, date);
-                    System.out.println("Done: "+file);
-                },executor));
-            }
-            CompletableFuture<Void> futures = CompletableFuture.allOf(futuresList.toArray(CompletableFuture[]::new));
-            futures.join();
-        }
-        
-    }//GEN-LAST:event_btn_RetimeByNameActionPerformed
-
-    private void btn_RenameByExIfOrLastModificationTimeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_RenameByExIfOrLastModificationTimeActionPerformed
-        
-        for (File file : new File(".").listFiles()) {
-            if(file.isDirectory()) continue;
-            ExifToolsUtil.FileType fileType = ExifToolsUtil.FileType.getFileType(file);
-            if(!fileType.isMedia()) continue;
-            Date date = ExifToolsUtil.getExIfDateTime(file);
-            if(date==null) continue;
-            String newFileName = ExifToolsUtil.DateFormat.fileName.format(date)+"."+FileUtil.getExtension(file.getName());
-            if(file.getName().equals(newFileName)) continue;
-            try {
-                Files.move(file.toPath(), Paths.get(file.getParent(), newFileName), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
-        
-    }//GEN-LAST:event_btn_RenameByExIfOrLastModificationTimeActionPerformed
-
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void btn_RefreshActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_RefreshActionPerformed
         
         field_Actions.fireActionsConsumers();
         
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event_btn_RefreshActionPerformed
+
+    private void btn_PlayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_PlayActionPerformed
+        
+        Actions action = field_Actions.getSelectedItem();
+        doAction(action);
+        
+    }//GEN-LAST:event_btn_PlayActionPerformed
 
     /**
      * @param args the command line arguments
@@ -306,16 +600,17 @@ public class MenuDialog extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btn_RenameByExIfOrLastModificationTime;
-    private javax.swing.JButton btn_RetimeByName;
+    private javax.swing.JButton btn_Play;
+    private javax.swing.JButton btn_Refresh;
     private com.tool.gui.cs.ActionsComboBox field_Actions;
     private javax.swing.JTextArea field_Left;
     private javax.swing.JTextArea field_Right;
-    private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
-    private javax.swing.JProgressBar jProgressBar1;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JSplitPane jSplitPane1;
+    private javax.swing.JLabel label_Left;
+    private javax.swing.JLabel label_Right;
+    private javax.swing.JProgressBar progressBar;
     // End of variables declaration//GEN-END:variables
 }

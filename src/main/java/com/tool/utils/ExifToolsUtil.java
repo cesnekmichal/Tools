@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 
@@ -59,6 +60,33 @@ public class ExifToolsUtil {
         }
     }
     private static File FFmpegExe = null;
+    
+    public static class FileFromTo{
+        public File from;
+        public File to;
+        public FileFromTo(File from, File to) {
+            this.from = from;
+            this.to = to;
+        }
+    }
+    
+    public static class FileAndDate{
+        public File file;
+        public Date date;
+        public FileAndDate(File file, Date date) {
+            this.file = file;
+            this.date = date;
+        }
+    }
+    
+    public static class FileAndType{
+        public File file;
+        public FileType fileType;
+        public FileAndType(File file, FileType fileType) {
+            this.file = file;
+            this.fileType = fileType;
+        }
+    }
     
     public enum FileType{
         /** File Type : JPEG, MIME Type : image/jpeg. */
@@ -104,7 +132,14 @@ public class ExifToolsUtil {
             */
             
             String cmd_out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-FileType","-MIMEType","-MajorBrand",json_out,mediaFile.getAbsolutePath());
-            JSONArray array = new JSONArray(cmd_out);
+            JSONArray array = null;
+            try {
+                array = new JSONArray(cmd_out);
+            } catch (JSONException ex) {
+                //ex.printStackTrace();
+                System.err.println("Unknown FileType:\n"+cmd_out);
+                return UNKNOWN;
+            }
             JSONObject obj = array.getJSONObject(0);
             String fileType = obj.getString("FileType");
             for (FileType value : values()) {
@@ -113,6 +148,14 @@ public class ExifToolsUtil {
             System.err.println("Unknown FileType:\n"+cmd_out);
             return UNKNOWN;
         };
+    }
+
+    public static Supplier<FileAndType> getFileAndTypeAsync(File file){
+        return () -> new FileAndType(file,FileType.getFileType(file));
+    }
+    
+    public static Supplier<Date> setExIfDateTimeAsync(File mediaFile,Date date){
+        return () -> setExIfDateTime(mediaFile,date);
     }
     
     public static Date setExIfDateTime(File mediaFile, Date date){
@@ -126,6 +169,10 @@ public class ExifToolsUtil {
             case MP3: return setFFmpegDateTime_MP3(mediaFile,date);
         }
         return null;
+    }
+    
+    public static Supplier<FileAndDate> getExIfFileAndDateTimeAsync(File mediaFile){
+        return () -> new FileAndDate(mediaFile, getExIfDateTime(mediaFile));
     }
     
     public static Supplier<Date> getExIfDateTimeAsync(File mediaFile){
@@ -182,6 +229,65 @@ public class ExifToolsUtil {
         Date minDate = map.values().stream().map(value -> parseDate(value)).filter(Objects::nonNull).min((Date o1, Date o2) -> o1.compareTo(o2)).orElse(null);
         return minDate;
     }
+
+    public static FileFromTo convertMOVtoMP4(File inputMOV, File outputMP4){
+        List<String> commands = new ArrayList<>();
+        if(!outputMP4.getParentFile().exists()) outputMP4.getParentFile().mkdirs();
+        commands.add(getFFmpegExe().getAbsolutePath());
+        commands.add("-y");//-y (Ano přepsat případně již existující výstupní soubor)
+        commands.add("-i");
+        commands.add(inputMOV.getAbsolutePath());
+        commands.add("-c:v");
+        commands.add("libx264");
+        commands.add("-preset");
+        commands.add("slow");
+        commands.add("-crf");
+        commands.add("18");
+        commands.add("-c:a");
+        commands.add("aac");
+        commands.add(outputMP4.getAbsolutePath());
+        String out = ExecuteUtil.exec(commands.toArray(String[]::new));
+        boolean success = out!=null && out.contains("Output #0, mp4, to '"+outputMP4.getAbsolutePath()+"':");//Output #0, mp4, to 'vystup.mp4':
+        if(!success){
+            System.out.println("Command> "+commands);
+            System.err.println("Convert from "+inputMOV+"\n to \n"+outputMP4+" failed:\n"+out);
+            return new FileFromTo(inputMOV, null);
+        }
+        return new FileFromTo(inputMOV, outputMP4);
+    }
+    
+    public static FileFromTo reConvertMP4toMP41080p(File inputMOV, File outputMP4){
+        List<String> commands = new ArrayList<>();
+        if(!outputMP4.getParentFile().exists()) outputMP4.getParentFile().mkdirs();
+        //ffmpeg -y -i vstup.mp4 -vf "scale=-2:1080" -vcodec libx264 -crf 18 -preset veryslow -acodec aac -b:a 128k vystup.mp4
+        commands.add(getFFmpegExe().getAbsolutePath());
+        commands.add("-y");//-y (Ano přepsat případně již existující výstupní soubor)
+        commands.add("-i");
+        commands.add(inputMOV.getAbsolutePath());
+        commands.add("-vf");
+        commands.add("scale=-2:1080");
+        commands.add("-vcodec");
+        commands.add("libx264");
+        commands.add("-crf");
+        commands.add("23");//18-28 high-low quality
+        commands.add("-preset");
+        commands.add("slow");
+        commands.add("-acodec");
+        commands.add("aac");
+        commands.add("-b:a");
+        commands.add("128k");
+        commands.add(outputMP4.getAbsolutePath());
+        String out = ExecuteUtil.exec(commands.toArray(String[]::new));
+        boolean success = out!=null && out.contains("Output #0, mp4, to '"+outputMP4.getAbsolutePath()+"':");//Output #0, mp4, to 'vystup.mp4':
+        if(!success){
+            outputMP4.delete();
+            System.out.println("Command> "+commands);
+            System.err.println("Convert from "+inputMOV+"\n to \n"+outputMP4+" failed:\n"+out);
+            return new FileFromTo(inputMOV, null);
+        }
+        return new FileFromTo(inputMOV, outputMP4);
+    }
+    
     public static Date setExIfDateTime_JPG(File mediaFile, Date date){
         if(date==null) return null;
         String dateValueMsUTC = DateFormat.exiftoolMilisUTC.format(date);
@@ -515,25 +621,25 @@ public class ExifToolsUtil {
         
     public static void main(String[] args) throws IOException {
         //exiftool.exe -time:all "fotka.jpg"
-        File file = new File("sample_media/sample.mp3");
-        File copy = new File("copy."+FileUtil.getExtension(file.getPath()));
-        
-        String out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",file.getAbsolutePath());
-        System.out.println(out);
-
+//        File file = new File("sample_media/sample.mp3");
+//        File copy = new File("copy."+FileUtil.getExtension(file.getPath()));
+//        
+//        String out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",file.getAbsolutePath());
+//        System.out.println(out);
         //2025,08,16-14,21,28.JPG
-        
 //        FileType fileType = FileType.getFileType(file.getAbsoluteFile());
 //        System.out.println(fileType);
 //
 //        Date date = getExIfDateTime(file);
 //        System.out.println(date);
+//        Files.copy(file.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        File inputMOV  = new File("../sample_media/file_example_MOV_640_800kB.mov");
+        File outputMP4 = new File("temp/file_example_MOV_640_800kB.mov.mp4");
+        System.out.println(convertMOVtoMP4(inputMOV,outputMP4));
         
-        Files.copy(file.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-        setExIfDateTime(copy, new Date());
-        out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",copy.getAbsolutePath());
-        System.out.println(out);
+//        setExIfDateTime(copy, new Date());
+//        out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",copy.getAbsolutePath());
+//        System.out.println(out);
     }
 
     

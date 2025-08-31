@@ -17,7 +17,7 @@ public class ActionsComboBoxRenderer extends DefaultListCellRenderer {
         if (value instanceof Actions) {
             Actions status = (Actions) value;
             // Zde nastavíme text, který chceme zobrazit
-            setText(status.name().toUpperCase()); // Např. zobrazíme velkými písmeny
+            setText(status.name()); // Např. zobrazíme velkými písmeny
         }
 
         return this;

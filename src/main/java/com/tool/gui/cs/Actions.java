@@ -1,26 +1,14 @@
 package com.tool.gui.cs;
 
-import jakarta.annotation.Nullable;
-import java.util.Objects;
-import java.util.stream.Stream;
-
 /**
  *
  * @author Česnek Michal, UNIDATAZ s.r.o.
  */
 public enum Actions {
-    RetimeByName,
+    Rename,
+    Rename_By_ExIfDateTime,
+    Retime_By_Name,
+    Convert_MOV_to_MP4,
+    ReConvert_MP4_1080p,
     ;
-//    public static String[] valuesS(){
-//        return Stream.of(values()).map((v)->v.name()).toArray(String[]::new);
-//    }
-//    public static @Nullable Actions get(Actions action){
-//        for (Actions action_ : values()) {
-//            if(Objects.equals(action_, action)) return action_;
-//        }
-//        return null;
-//    }
-//    public Object getID(){
-//        return name();
-//    }
 }

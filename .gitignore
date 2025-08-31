@@ -4,3 +4,5 @@
 
 # Maven Shade Plugin
 dependency-reduced-pom.xml
+/release/MediaTool.exe
+/release/launch4j.log

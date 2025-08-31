@@ -11,7 +11,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -26,11 +25,15 @@ public class ExecuteUtil {
         new Thread(runnable).start();
     }
     
-    public static <U> List<U> runsAsync(List<Supplier<U>> suppliers,BiConsumer<U,Throwable> whenPartialComplete){
-        return runsAsync(suppliers.toArray(Supplier[]::new),whenPartialComplete);
+    public static <U> List<U> runsAsync(List<Supplier<U>> suppliers,Runnable whenPartialComplete,int parallelCount){
+        return runsAsync(suppliers.toArray(Supplier[]::new),whenPartialComplete,parallelCount);
     }
     
-    public static <U> List<U> runsAsync(Supplier<U>[] suppliers,BiConsumer<U,Throwable> whenPartialComplete){
+    public static <U> List<U> runsAsync(List<Supplier<U>> suppliers,Runnable whenPartialComplete){
+        return runsAsync(suppliers.toArray(Supplier[]::new),whenPartialComplete,Runtime.getRuntime().availableProcessors());
+    }
+    
+    public static <U> List<U> runsAsync(Supplier<U>[] suppliers,Runnable whenPartialComplete,int parallelCount){
         class run{
             static <U> U get(CompletableFuture<U> cf){
                 try {
@@ -41,10 +44,11 @@ public class ExecuteUtil {
                 }
             }
         }
-        try (ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) {
+        try (ExecutorService executor = Executors.newFixedThreadPool(parallelCount)) {
             List<CompletableFuture> futuresList = new ArrayList<>();
+            BiConsumer<U,Throwable> whenPartialComplete_ = (U t, Throwable u) -> whenPartialComplete.run();
             for (Supplier<U> supplier : suppliers) {
-                futuresList.add(CompletableFuture.supplyAsync(supplier,executor).whenComplete(whenPartialComplete));
+                futuresList.add(CompletableFuture.supplyAsync(supplier,executor).whenComplete(whenPartialComplete_));
             }
             CompletableFuture<Void> futures = CompletableFuture.allOf(futuresList.toArray(CompletableFuture[]::new));
             futures.join();

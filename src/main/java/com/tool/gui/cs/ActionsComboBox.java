@@ -40,5 +40,11 @@ public class ActionsComboBox extends JComboBox<Actions>{
             actionsConsumer.accept((Actions)getModel().getSelectedItem());
         }
     }
+
+    @Override
+    public Actions getSelectedItem() {
+        Object o = super.getSelectedItem();
+        return (o instanceof Actions) ? (Actions)o : null;
+    }
     
 }
