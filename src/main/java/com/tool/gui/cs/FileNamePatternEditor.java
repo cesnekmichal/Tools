@@ -131,12 +131,8 @@ public class FileNamePatternEditor extends JPanel{
             }
         });
         
-        textPane.setText(P.year+","+P.month+","+P.day);
-        
         // Vytvoření popup menu
         JPopupMenu popupMenu = new JPopupMenu();
-        List<String> presets = P.values().stream().map((v)->v.name).toList();
-
         for (P p : P.values()) {
             JMenuItem item = new JMenuItem(p.name+" - "+p.desc);
             item.addActionListener(e -> {
@@ -162,6 +158,14 @@ public class FileNamePatternEditor extends JPanel{
         setBorder(new LineBorder(Color.BLACK, 1));
     }
 
+    public void setText(String text) {
+        this.textPane.setText(text);
+    }
+
+    public String getText() {
+        return textPane.getText();
+    }
+    
     @Override
     public void setEnabled(boolean enabled) {
         textPane.setEnabled(enabled);
@@ -182,6 +186,7 @@ public class FileNamePatternEditor extends JPanel{
         panel.setLayout(new FlowLayout());
         frame.add(panel);
         FileNamePatternEditor fileNamePatternEditor = new FileNamePatternEditor();
+        fileNamePatternEditor.setText(P.year+","+P.month+","+P.day);
         panel.add(fileNamePatternEditor);
 //        fileNamePatternEditor.setEnabled(false);
         frame.setSize(300, 100);
