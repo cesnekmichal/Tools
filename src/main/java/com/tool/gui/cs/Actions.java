@@ -8,7 +8,7 @@ public enum Actions {
     Rename,
     Rename_By_ExIfDateTime,
     Retime_By_Name,
-    Convert_MOV_to_MP4,
-    ReConvert_MP4_1080p,
+    Encode_MOV_to_MP4,
+    ReEncode_MP4_1080p,
     ;
 }

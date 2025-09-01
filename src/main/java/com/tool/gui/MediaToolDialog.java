@@ -1,7 +1,6 @@
 package com.tool.gui;
 
 import com.tool.gui.cs.Actions;
-import static com.tool.gui.cs.Actions.Convert_MOV_to_MP4;
 import static com.tool.gui.cs.Actions.Retime_By_Name;
 import com.tool.gui.cs.ActionsConsumer;
 import com.tool.utils.ExecuteUtil;
@@ -27,7 +26,9 @@ import javax.swing.SwingUtilities;
 import static com.tool.gui.cs.Actions.Rename_By_ExIfDateTime;
 import com.tool.utils.StringUtil;
 import java.util.stream.IntStream;
-import static com.tool.gui.cs.Actions.ReConvert_MP4_1080p;
+import javax.swing.UIManager;
+import static com.tool.gui.cs.Actions.Encode_MOV_to_MP4;
+import static com.tool.gui.cs.Actions.ReEncode_MP4_1080p;
 
 /** 
  * Třída MenuDialog představuje dialogové okno pro provádění různých akcí na mediálních souborech.
@@ -87,6 +88,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
         
         label_Left.setText("");
         label_Right.setText("");
+        fileld_FileNamePattern.setEnabled(false);
         
         awtLocker = new AutoCloseableResource(() -> {
             //On Open
@@ -136,12 +138,13 @@ public class MediaToolDialog extends javax.swing.JFrame {
             case Retime_By_Name -> {
                 ExecuteUtil.runInThread(()->viewAction_Retime_By_Name());
             }
-            case Convert_MOV_to_MP4 -> {
+            case Encode_MOV_to_MP4 -> {
                 ExecuteUtil.runInThread(()->viewAction_Convert_MOV_to_MP4());
             }
-            case ReConvert_MP4_1080p -> {
+            case ReEncode_MP4_1080p -> {
                 ExecuteUtil.runInThread(()->viewAction_ReConvert_MP4_1080p());
             }
+
         }        
     }
     
@@ -157,51 +160,16 @@ public class MediaToolDialog extends javax.swing.JFrame {
             case Retime_By_Name -> {
                 ExecuteUtil.runInThread(()->doAction_Retime_By_Name());
             }
-            case Convert_MOV_to_MP4 -> {
-                ExecuteUtil.runInThread(()->doAction_Convert_MOV_to_MP4());
+            case Encode_MOV_to_MP4 -> {
+                ExecuteUtil.runInThread(()->doAction_Encode_MOV_to_MP4());
             }
-            case ReConvert_MP4_1080p -> {
-                ExecuteUtil.runInThread(()->doAction_ReConvert_MP4_1080p());
+            case ReEncode_MP4_1080p -> {
+                ExecuteUtil.runInThread(()->doAction_ReEncode_MP4_1080p());
             }
-        }
-    }
-    
-    private void viewAction_Retime_By_Name(){
-        try(AutoCloseableX lock = awtLocker.open()){
-            File[] files = getOperatedFiles(Actions.Retime_By_Name);
-            String left = Stream.of(files).map((f)->f.getName()).collect(Collectors.joining("\n"));
-            progressBarInit(files.length+1);
-            progressBarIncrement();
-            List<Supplier<Date>> suppliers = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfDateTimeAsync(file)).collect(Collectors.toList());
-            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
-            progressBarReset();
-            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
-            label_Left.setText("Filename");
-            field_Left.setText(left);
-            field_Left.setEditable(false);
-            label_Right.setText("Exif datetime");
-            field_Right.setText(right);
-            field_Right.setEditable(false);
-        }
-    }
-    
-    private void doAction_Retime_By_Name(){
-        try(AutoCloseableX lock = awtLocker.open()){
-            File[] files = getOperatedFiles(Actions.Retime_By_Name);
-            Map<File, Date> filesDates = Stream.of(files).collect(Collectors.toMap((file)->file, (file)->ExifToolsUtil.DateFormat.fileName.parse(FileUtil.removeExtension(file.getName()))));
-            //Stream.of(files).map((file)->).collect(Collectors.toList());
-            progressBarInit(files.length+1);
-            progressBarIncrement();
-            List<Supplier<Date>> suppliers = filesDates.entrySet().stream().map((entry)->ExifToolsUtil.setExIfDateTimeAsync(entry.getKey(), entry.getValue())).collect(Collectors.toList());
-            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
-            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
-            label_Right.setText("Exif datetime");
-            field_Right.setText(right);
-            field_Right.setEditable(false);
-            progressBarReset();
-        }
-    }
 
+        }
+    }
+    
     private void viewAction_Rename(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFiles = getFileTypesAsync();
@@ -215,6 +183,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Filename To (edit this filenames)");
             field_Right.setText(left_right);
             field_Right.setEditable(true);
+            fileld_FileNamePattern.setEnabled(true);
             progressBarReset();
         }
     }
@@ -241,6 +210,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
             progressBarReset();
         }
     }
+    
     private void viewAction_Rename_By_ExIfDateTime(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFiles = getFileTypesAsync();
@@ -257,10 +227,10 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Exif datetime");
             field_Right.setText(right);
             field_Right.setEditable(false);
+            fileld_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
-    
     private void doAction_Rename_By_ExIfDateTime(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
@@ -293,6 +263,42 @@ public class MediaToolDialog extends javax.swing.JFrame {
         }
     }    
     
+    private void viewAction_Retime_By_Name(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            File[] files = getOperatedFiles(Actions.Retime_By_Name);
+            String left = Stream.of(files).map((f)->f.getName()).collect(Collectors.joining("\n"));
+            progressBarInit(files.length+1);
+            progressBarIncrement();
+            List<Supplier<Date>> suppliers = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfDateTimeAsync(file)).collect(Collectors.toList());
+            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
+            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            fileld_FileNamePattern.setEnabled(false);
+            progressBarReset();
+        }
+    }
+    private void doAction_Retime_By_Name(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            File[] files = getOperatedFiles(Actions.Retime_By_Name);
+            Map<File, Date> filesDates = Stream.of(files).collect(Collectors.toMap((file)->file, (file)->ExifToolsUtil.DateFormat.fileName.parse(FileUtil.removeExtension(file.getName()))));
+            //Stream.of(files).map((file)->).collect(Collectors.toList());
+            progressBarInit(files.length+1);
+            progressBarIncrement();
+            List<Supplier<Date>> suppliers = filesDates.entrySet().stream().map((entry)->ExifToolsUtil.setExIfDateTimeAsync(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
+            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Right.setText("Exif datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+
     private void viewAction_Convert_MOV_to_MP4(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
@@ -310,11 +316,11 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("MP4 files (same filename as MOV)");
             field_Right.setText(right);
             field_Right.setEditable(false);
+            fileld_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
-
-    private void doAction_Convert_MOV_to_MP4(){
+    private void doAction_Encode_MOV_to_MP4(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
             progressBarInit(suppliersFATs.size()*2);
@@ -367,11 +373,11 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Size: "+StringUtil.formatFileSize(filesMP4.stream().mapToLong((f)->f.length()).sum(), 1));
             field_Right.setText(right);
             field_Right.setEditable(false);
+            fileld_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
-
-    private void doAction_ReConvert_MP4_1080p(){
+    private void doAction_ReEncode_MP4_1080p(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
             progressBarInit(suppliersFATs.size());
@@ -465,7 +471,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
         jScrollPane2 = new javax.swing.JScrollPane();
         field_Right = new javax.swing.JTextArea();
         progressBar = new javax.swing.JProgressBar();
-        fileNamePatternEditor1 = new com.tool.gui.cs.FileNamePatternEditor();
+        fileld_FileNamePattern = new com.tool.gui.cs.FileNamePatternEditor();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -509,12 +515,12 @@ public class MediaToolDialog extends javax.swing.JFrame {
                     .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 301, Short.MAX_VALUE)
+                            .addComponent(jScrollPane1)
                             .addComponent(label_Left))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(label_Right)
-                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 302, Short.MAX_VALUE))
+                            .addComponent(jScrollPane2))
                         .addGap(14, 14, 14)))
                 .addGap(0, 0, 0))
         );
@@ -539,7 +545,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
+                .addGap(15, 15, 15)
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -548,8 +554,8 @@ public class MediaToolDialog extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btn_Play)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(fileNamePatternEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
+                .addComponent(fileld_FileNamePattern, javax.swing.GroupLayout.DEFAULT_SIZE, 286, Short.MAX_VALUE)
+                .addGap(15, 15, 15))
             .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
@@ -561,7 +567,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
                     .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel1)
                     .addComponent(btn_Play)
-                    .addComponent(fileNamePatternEditor1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(fileld_FileNamePattern, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
@@ -590,7 +596,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
     private com.tool.gui.cs.ActionsComboBox field_Actions;
     private javax.swing.JTextArea field_Left;
     private javax.swing.JTextArea field_Right;
-    private com.tool.gui.cs.FileNamePatternEditor fileNamePatternEditor1;
+    private com.tool.gui.cs.FileNamePatternEditor fileld_FileNamePattern;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel3;
     private javax.swing.JScrollPane jScrollPane1;

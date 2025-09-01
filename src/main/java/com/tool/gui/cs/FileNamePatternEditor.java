@@ -82,6 +82,8 @@ public class FileNamePatternEditor extends JPanel{
     public FileNamePatternEditor() {
         setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
         
+        setBackground(Color.WHITE);
+        
         // Získání aktuálního fontu
         Font puvodniFont = textPane.getFont();
         // Vytvoření nového fontu se stejným názvem a stylem, ale větší velikostí
@@ -93,7 +95,7 @@ public class FileNamePatternEditor extends JPanel{
         add(textPane);
         // Nastavení výšky na jeden řádek
         int lineHeight = textPane.getFontMetrics(textPane.getFont()).getHeight();
-        textPane.setPreferredSize(new Dimension(200, lineHeight + 6));
+        textPane.setPreferredSize(new Dimension(200, lineHeight + 0));
         
         // Stylování
         StyledDocument doc = textPane.getStyledDocument();
@@ -150,7 +152,7 @@ public class FileNamePatternEditor extends JPanel{
         btn.addActionListener(e -> {
             popupMenu.show(btn, 0, btn.getHeight());
         });        
-        btn.setMargin(new Insets(1, 5, 1, 5));
+        btn.setMargin(new Insets(0, 5, 0, 5));
         btn.setFocusable(false);
         add(btn);
         
@@ -185,9 +187,9 @@ public class FileNamePatternEditor extends JPanel{
         JPanel panel = new JPanel();
         panel.setLayout(new FlowLayout());
         frame.add(panel);
-        FileNamePatternEditor fileNamePatternEditor = new FileNamePatternEditor();
-        fileNamePatternEditor.setText(P.year+","+P.month+","+P.day);
-        panel.add(fileNamePatternEditor);
+        FileNamePatternEditor editor = new FileNamePatternEditor();
+        editor.setText(P.year+","+P.month+","+P.day);
+        panel.add(editor);
 //        fileNamePatternEditor.setEnabled(false);
         frame.setSize(300, 100);
         SwingUtilities.invokeLater(()->frame.setVisible(true));
