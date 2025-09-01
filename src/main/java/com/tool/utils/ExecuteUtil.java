@@ -33,6 +33,15 @@ public class ExecuteUtil {
         return runsAsync(suppliers.toArray(Supplier[]::new),whenPartialComplete,Runtime.getRuntime().availableProcessors());
     }
     
+    /**
+     * Spustí asynchronní provádění posloupnosti poskytovatelů dat a vrátí seznam výsledků.
+     * 
+     * @param <U> typ výsledku
+     * @param suppliers pole poskytovatelů, které mají být spuštěny asynchronně
+     * @param whenPartialComplete akce, která se spustí po dokončení jednotlivých úkolů
+     * @param parallelCount počet paralelních vláken pro spuštění úkolů
+     * @return seznam výsledků z poskytovatelů
+     */
     public static <U> List<U> runsAsync(Supplier<U>[] suppliers,Runnable whenPartialComplete,int parallelCount){
         class run{
             static <U> U get(CompletableFuture<U> cf){
@@ -84,13 +93,17 @@ public class ExecuteUtil {
         return CompletableFuture.supplyAsync(()->exec(command));
     }
     
-    /** Otevře umístění souboru. */
-    public static boolean openFileLocation(File f){
-        if(isWindows()){
+    /** 
+     * Otevře umístění souboru v průzkumníku systému Windows.
+     * Pro jiné operační systémy metoda neudělá nic.
+     * 
+     * @param f Soubor, jehož umístění se má otevřít
+     * @return Vždy vrací false
+     */
+    public static boolean openFileLocation(File f) {
+        if (isWindows()) {
             try {
                 String path = f.getCanonicalPath();
-                //Cesta k souboru nesmí obsahovat mezery jinak to přestane fungovat!
-                //V místě kde je mezera musí začít nový parametr.
                 List<String> commands = new ArrayList<>();
                 commands.add("explorer.exe");
                 commands.add("/select,");

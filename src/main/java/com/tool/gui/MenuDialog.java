@@ -29,8 +29,12 @@ import com.tool.utils.StringUtil;
 import java.util.stream.IntStream;
 import static com.tool.gui.cs.Actions.ReConvert_MP4_1080p;
 
-/**
- *
+/** 
+ * Třída MenuDialog představuje dialogové okno pro provádění různých akcí na mediálních souborech.
+ * Obsahuje komponenty pro výběr akce, zobrazení vstupních a výstupních dat, a ovládací prvky pro spuštění akcí.
+ * Třída podporuje operace jako přejmenování souborů podle Exif dat, změnu času souborů podle názvu,
+ * konverzi MOV souborů na MP4 a další.
+ * 
  * @author Česnek Michal, UNIDATAZ s.r.o.
  */
 public class MenuDialog extends javax.swing.JFrame {

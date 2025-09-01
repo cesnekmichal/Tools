@@ -230,11 +230,13 @@ public class ExifToolsUtil {
         return minDate;
     }
 
-    public static FileFromTo convertMOVtoMP4(File inputMOV, File outputMP4){
+    public static FileFromTo convertMOVtoMP4(File inputMOV, File outputMP4) {
         List<String> commands = new ArrayList<>();
-        if(!outputMP4.getParentFile().exists()) outputMP4.getParentFile().mkdirs();
+        if (!outputMP4.getParentFile().exists()) {
+            outputMP4.getParentFile().mkdirs();
+        }
         commands.add(getFFmpegExe().getAbsolutePath());
-        commands.add("-y");//-y (Ano přepsat případně již existující výstupní soubor)
+        commands.add("-y");
         commands.add("-i");
         commands.add(inputMOV.getAbsolutePath());
         commands.add("-c:v");
@@ -242,26 +244,33 @@ public class ExifToolsUtil {
         commands.add("-preset");
         commands.add("slow");
         commands.add("-crf");
-        commands.add("18");
+        commands.add("23");//18-28 high-low quality
         commands.add("-c:a");
         commands.add("aac");
         commands.add(outputMP4.getAbsolutePath());
         String out = ExecuteUtil.exec(commands.toArray(String[]::new));
-        boolean success = out!=null && out.contains("Output #0, mp4, to '"+outputMP4.getAbsolutePath()+"':");//Output #0, mp4, to 'vystup.mp4':
-        if(!success){
-            System.out.println("Command> "+commands);
-            System.err.println("Convert from "+inputMOV+"\n to \n"+outputMP4+" failed:\n"+out);
+        boolean success = out != null && out.contains("Output #0, mp4, to '" + outputMP4.getAbsolutePath() + "':");
+        if (!success) {
+            System.out.println("Command> " + commands);
+            System.err.println("Convert from " + inputMOV + "\n to \n" + outputMP4 + " failed:\n" + out);
+            return new FileFromTo(inputMOV, null);
+        }
+        try {
+            Files.move(outputMP4.toPath(), outputMP4.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException ex) {
+            ex.printStackTrace();
             return new FileFromTo(inputMOV, null);
         }
         return new FileFromTo(inputMOV, outputMP4);
     }
     
-    public static FileFromTo reConvertMP4toMP41080p(File inputMOV, File outputMP4){
+    public static FileFromTo reConvertMP4toMP41080p(File inputMOV, File outputMP4) {
         List<String> commands = new ArrayList<>();
-        if(!outputMP4.getParentFile().exists()) outputMP4.getParentFile().mkdirs();
-        //ffmpeg -y -i vstup.mp4 -vf "scale=-2:1080" -vcodec libx264 -crf 18 -preset veryslow -acodec aac -b:a 128k vystup.mp4
+        if (!outputMP4.getParentFile().exists()) {
+            outputMP4.getParentFile().mkdirs();
+        }
         commands.add(getFFmpegExe().getAbsolutePath());
-        commands.add("-y");//-y (Ano přepsat případně již existující výstupní soubor)
+        commands.add("-y");
         commands.add("-i");
         commands.add(inputMOV.getAbsolutePath());
         commands.add("-vf");
@@ -269,7 +278,7 @@ public class ExifToolsUtil {
         commands.add("-vcodec");
         commands.add("libx264");
         commands.add("-crf");
-        commands.add("23");//18-28 high-low quality
+        commands.add("23");
         commands.add("-preset");
         commands.add("slow");
         commands.add("-acodec");
@@ -278,11 +287,17 @@ public class ExifToolsUtil {
         commands.add("128k");
         commands.add(outputMP4.getAbsolutePath());
         String out = ExecuteUtil.exec(commands.toArray(String[]::new));
-        boolean success = out!=null && out.contains("Output #0, mp4, to '"+outputMP4.getAbsolutePath()+"':");//Output #0, mp4, to 'vystup.mp4':
-        if(!success){
+        boolean success = out != null && out.contains("Output #0, mp4, to '" + outputMP4.getAbsolutePath() + "':");
+        if (!success) {
             outputMP4.delete();
-            System.out.println("Command> "+commands);
-            System.err.println("Convert from "+inputMOV+"\n to \n"+outputMP4+" failed:\n"+out);
+            System.out.println("Command> " + commands);
+            System.err.println("Convert from " + inputMOV + "\n to \n" + outputMP4 + " failed:\n" + out);
+            return new FileFromTo(inputMOV, null);
+        }
+        try {
+            Files.move(outputMP4.toPath(), outputMP4.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException ex) {
+            ex.printStackTrace();
             return new FileFromTo(inputMOV, null);
         }
         return new FileFromTo(inputMOV, outputMP4);
