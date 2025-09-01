@@ -37,7 +37,7 @@ import static com.tool.gui.cs.Actions.ReConvert_MP4_1080p;
  * 
  * @author Česnek Michal, UNIDATAZ s.r.o.
  */
-public class MenuDialog extends javax.swing.JFrame {
+public class MediaToolDialog extends javax.swing.JFrame {
     
     private interface AutoCloseableX extends AutoCloseable{
         @Override
@@ -62,7 +62,7 @@ public class MenuDialog extends javax.swing.JFrame {
     /**
      * Creates new form Menu
      */
-    public MenuDialog() {
+    public MediaToolDialog() {
         initComponents();
         setTitle("MediaTool "+" ("+new File("").getAbsolutePath()+")");
         setSize(new Dimension(635, 450));
@@ -465,6 +465,7 @@ public class MenuDialog extends javax.swing.JFrame {
         jScrollPane2 = new javax.swing.JScrollPane();
         field_Right = new javax.swing.JTextArea();
         progressBar = new javax.swing.JProgressBar();
+        fileNamePatternEditor1 = new com.tool.gui.cs.FileNamePatternEditor();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -526,7 +527,7 @@ public class MenuDialog extends javax.swing.JFrame {
                     .addComponent(label_Right))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 690, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 687, Short.MAX_VALUE)
                     .addComponent(jScrollPane1))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -546,7 +547,9 @@ public class MenuDialog extends javax.swing.JFrame {
                 .addComponent(btn_Refresh)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btn_Play)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(fileNamePatternEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
             .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
@@ -557,7 +560,8 @@ public class MenuDialog extends javax.swing.JFrame {
                     .addComponent(btn_Refresh)
                     .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel1)
-                    .addComponent(btn_Play))
+                    .addComponent(btn_Play)
+                    .addComponent(fileNamePatternEditor1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
@@ -577,6 +581,24 @@ public class MenuDialog extends javax.swing.JFrame {
         doAction(action);
         
     }//GEN-LAST:event_btn_PlayActionPerformed
+
+
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btn_Play;
+    private javax.swing.JButton btn_Refresh;
+    private com.tool.gui.cs.ActionsComboBox field_Actions;
+    private javax.swing.JTextArea field_Left;
+    private javax.swing.JTextArea field_Right;
+    private com.tool.gui.cs.FileNamePatternEditor fileNamePatternEditor1;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JLabel label_Left;
+    private javax.swing.JLabel label_Right;
+    private javax.swing.JProgressBar progressBar;
+    // End of variables declaration//GEN-END:variables
 
     /**
      * @param args the command line arguments
@@ -600,21 +622,7 @@ public class MenuDialog extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> new MenuDialog().setVisible(true));
+        java.awt.EventQueue.invokeLater(() -> new MediaToolDialog().setVisible(true));
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btn_Play;
-    private javax.swing.JButton btn_Refresh;
-    private com.tool.gui.cs.ActionsComboBox field_Actions;
-    private javax.swing.JTextArea field_Left;
-    private javax.swing.JTextArea field_Right;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JPanel jPanel3;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JLabel label_Left;
-    private javax.swing.JLabel label_Right;
-    private javax.swing.JProgressBar progressBar;
-    // End of variables declaration//GEN-END:variables
 }
