@@ -98,6 +98,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
             btn_Play.setEnabled(false);
             field_Left.setEnabled(false);
             field_Right.setEnabled(false);
+            field_FileNamePattern.setEnabled(false);
         }, () -> {
             //On Close
             field_Actions.setEnabled(true);
@@ -105,6 +106,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
             btn_Play.setEnabled(true);
             field_Left.setEnabled(true);
             field_Right.setEnabled(true);
+            field_FileNamePattern.setEnabled(field_Actions.getSelectedItem()==Actions.Rename);
         });
     }
 
@@ -186,12 +188,13 @@ public class MediaToolDialog extends javax.swing.JFrame {
             List<FileTypeDate> fileTypeDates = fileTypeDatesAll.stream()
                 .filter((ftd)->ftd.type.isMedia() && ftd.date!=null).toList();
             String left = fileTypeDates.stream().map((ftd)->ftd.file.getName()).collect(Collectors.joining("\n"));
-            String right = IntStream.range(0, fileTypeDates.size()).boxed().map((Integer idx)->{
+            int fileCount = fileTypeDates.size();
+            String right = IntStream.range(0, fileCount).boxed().map((Integer idx)->{
                 progressBarIncrement();
                 String fileName = fileTypeDates.get(idx).file.getName();
                 Date   fileDate = fileTypeDates.get(idx).date;
                 Integer fileNum = idx+1;
-                return field_FileNamePattern.getFormattedFileName(fileName, fileDate, fileNum);
+                return field_FileNamePattern.getFormattedFileName(fileName, fileDate, fileNum, fileCount);
             }).collect(Collectors.joining("\n"));
             
             label_Left.setText("Filename From");
@@ -200,7 +203,6 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Filename To (edit this filenames)");
             field_Right.setText(right);
             field_Right.setEditable(true);
-            field_FileNamePattern.setEnabled(true);
             progressBarReset();
         }
     }
@@ -244,7 +246,6 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Exif datetime");
             field_Right.setText(right);
             field_Right.setEditable(false);
-            field_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
@@ -295,7 +296,6 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Exif datetime");
             field_Right.setText(right);
             field_Right.setEditable(false);
-            field_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
@@ -333,7 +333,6 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("MP4 files (same filename as MOV)");
             field_Right.setText(right);
             field_Right.setEditable(false);
-            field_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
@@ -390,7 +389,6 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Size: "+StringUtil.formatFileSize(filesMP4.stream().mapToLong((f)->f.length()).sum(), 1));
             field_Right.setText(right);
             field_Right.setEditable(false);
-            field_FileNamePattern.setEnabled(false);
             progressBarReset();
         }
     }
@@ -529,17 +527,18 @@ public class MediaToolDialog extends javax.swing.JFrame {
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addContainerGap())
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 328, Short.MAX_VALUE)
                             .addComponent(label_Left))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(label_Right)
-                            .addComponent(jScrollPane2))
-                        .addGap(14, 14, 14)))
-                .addGap(0, 0, 0))
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 328, Short.MAX_VALUE))
+                        .addGap(14, 14, 14))))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -571,7 +570,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btn_Play)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(field_FileNamePattern, javax.swing.GroupLayout.DEFAULT_SIZE, 286, Short.MAX_VALUE)
+                .addComponent(field_FileNamePattern, javax.swing.GroupLayout.DEFAULT_SIZE, 297, Short.MAX_VALUE)
                 .addGap(15, 15, 15))
             .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );

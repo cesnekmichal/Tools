@@ -43,7 +43,7 @@ public class FileNamePatternEditor extends JPanel{
      * @param fileNum číslo souboru
      * @return formátovaný název souboru
      */
-    public String getFormattedFileName(String fileName, Date fileDate, Integer fileNum) {
+    public String getFormattedFileName(String fileName, Date fileDate, Integer fileNum, Integer fileCount) {
         String pattern = getText();
         //Prázdá šablonba -> původní název
         if(pattern.isBlank()) return fileName;
@@ -54,6 +54,9 @@ public class FileNamePatternEditor extends JPanel{
             } else 
             if(p.type==PType.NUM){
                 pattern = pattern.replace(p.name, String.format(p.mask, fileNum));
+            } else 
+            if(p.type==PType.NUMX){
+                pattern = pattern.replace(p.name, String.format("%0"+fileCount.toString().length()+"d", fileNum));//%01d ... %09d
             }
         }
         //Zbývající nepodporované tagy odstraníme
@@ -65,7 +68,9 @@ public class FileNamePatternEditor extends JPanel{
 
     public static enum PType{
         DATE,
-        NUM
+        NUM,
+        NUMX,
+        ;
     }
     
     //yyyy-MM-dd HH:mm:ss
@@ -80,6 +85,7 @@ public class FileNamePatternEditor extends JPanel{
         static P num2   = new P("*01*"    ,"%02d",PType.NUM ,"e.g.  01");
         static P num3   = new P("*001*"   ,"%03d",PType.NUM ,"e.g. 001");
         static P num4   = new P("*0001*"  ,"%04d",PType.NUM ,"e.g.0001");
+        static P numX   = new P("*number*",null  ,PType.NUMX,"e.g.1 11 111");
 
         String name;
         String mask;
@@ -98,7 +104,7 @@ public class FileNamePatternEditor extends JPanel{
             return null;
         }
         public static List<P> values(){
-            return List.of(year,month,day,hour,minute,second,num1,num2,num3,num4);
+            return List.of(year,month,day,hour,minute,second,num1,num2,num3,num4,numX);
         }
         @Override
         public String toString() {
