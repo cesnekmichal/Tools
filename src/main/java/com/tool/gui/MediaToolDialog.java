@@ -23,12 +23,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.SwingUtilities;
-import static com.tool.gui.cs.Actions.Rename_By_ExIfDateTime;
 import com.tool.utils.StringUtil;
 import java.util.stream.IntStream;
 import static com.tool.gui.cs.Actions.Encode_MOV_to_MP4;
 import static com.tool.gui.cs.Actions.ReEncode_MP4_1080p;
 import com.tool.utils.ExifToolsUtil.FileTypeDate;
+import static com.tool.gui.cs.Actions.Rename_By_DateTime;
 
 /** 
  * Třída MenuDialog představuje dialogové okno pro provádění různých akcí na mediálních souborech.
@@ -141,11 +141,14 @@ public class MediaToolDialog extends javax.swing.JFrame {
             case Rename -> {
                 ExecuteUtil.runInThread(()->viewAction_Rename());
             }
-            case Rename_By_ExIfDateTime -> {
-                ExecuteUtil.runInThread(()->viewAction_Rename_By_ExIfDateTime());
+            case Rename_By_DateTime -> {
+                ExecuteUtil.runInThread(()->viewAction_Rename_By_DateTime());
             }
             case Retime_By_Name -> {
                 ExecuteUtil.runInThread(()->viewAction_Retime_By_Name());
+            }
+            case Retime_By_DateTime -> {
+                ExecuteUtil.runInThread(()->viewAction_Retime_By_DateTime());
             }
             case Encode_MOV_to_MP4 -> {
                 ExecuteUtil.runInThread(()->viewAction_Convert_MOV_to_MP4());
@@ -163,11 +166,14 @@ public class MediaToolDialog extends javax.swing.JFrame {
             case Rename -> {
                 ExecuteUtil.runInThread(()->doAction_Rename());
             }
-            case Rename_By_ExIfDateTime -> {
-                ExecuteUtil.runInThread(()->doAction_Rename_By_ExIfDateTime());
+            case Rename_By_DateTime -> {
+                ExecuteUtil.runInThread(()->doAction_Rename_By_DateTime());
             }
             case Retime_By_Name -> {
                 ExecuteUtil.runInThread(()->doAction_Retime_By_Name());
+            }
+            case Retime_By_DateTime -> {
+                ExecuteUtil.runInThread(()->doAction_Retime_By_DateTime());
             }
             case Encode_MOV_to_MP4 -> {
                 ExecuteUtil.runInThread(()->doAction_Encode_MOV_to_MP4());
@@ -229,7 +235,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
         }
     }
     
-    private void viewAction_Rename_By_ExIfDateTime(){
+    private void viewAction_Rename_By_DateTime(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFiles = getFileTypesAsync();
             progressBarInit(suppliersFiles.size()*2);
@@ -242,13 +248,13 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Left.setText("Filename from");
             field_Left.setText(left);
             field_Left.setEditable(false);
-            label_Right.setText("Filename to (Exif datetime)");
+            label_Right.setText("Filename to (datetime)");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
         }
     }
-    private void doAction_Rename_By_ExIfDateTime(){
+    private void doAction_Rename_By_DateTime(){
         try(AutoCloseableX lock = awtLocker.open()){
             List<Supplier<FileAndType>> suppliersFATs = getFileTypesAsync();
             progressBarInit(suppliersFATs.size()*3);
@@ -273,7 +279,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Left.setText("Filename from");
             field_Left.setText(left);
             field_Left.setEditable(false);
-            label_Right.setText("Filename to (Exif datetime)");
+            label_Right.setText("Filename to (datetime)");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
@@ -310,6 +316,38 @@ public class MediaToolDialog extends javax.swing.JFrame {
             label_Right.setText("Date from filename");
             field_Right.setText(right);
             field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+
+    private void viewAction_Retime_By_DateTime(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileTypeDate>> suppliersFTDs = getFileTypeDatesAsync();
+            progressBarInit(suppliersFTDs.size()+1);
+            progressBarIncrement();
+            List<FileTypeDate> fileTypeDates = ExecuteUtil.runsAsync(suppliersFTDs,progressBarIncrement);
+            fileTypeDates = fileTypeDates.stream().filter((ftd)->ftd.date!=null).toList();
+            String left = fileTypeDates.stream().map((ftd)->ftd.file.getName()).collect(Collectors.joining("\n"));
+            String right = fileTypeDates.stream().map((ftd)->ExifToolsUtil.DateFormat.exiftool.format(ftd.date)).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename");
+            field_Left.setText(left);
+            field_Left.setEditable(false);
+            label_Right.setText("Datetime");
+            field_Right.setText(right);
+            field_Right.setEditable(false);
+            progressBarReset();
+        }
+    }
+    private void doAction_Retime_By_DateTime(){
+        try(AutoCloseableX lock = awtLocker.open()){
+            List<Supplier<FileTypeDate>> suppliersFTDget = getFileTypeDatesAsync();
+            progressBarInit(suppliersFTDget.size()*2+1);
+            progressBarIncrement();
+            List<FileTypeDate> fileTypeDates = ExecuteUtil.runsAsync(suppliersFTDget,progressBarIncrement);
+            //Sestavíme seznam akcí pro přenastavení ExIfDate
+            List<Supplier<FileTypeDate>> suppliersFTDset = fileTypeDates.stream().map((ftd)->ExifToolsUtil.setExIfDateTimeAsync(ftd.file, ftd.date)).toList();
+            //Pouze spustíme, žádný výstup nepotřebujeme
+            ExecuteUtil.runsAsync(suppliersFTDset,progressBarIncrement);
             progressBarReset();
         }
     }

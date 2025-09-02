@@ -6,8 +6,9 @@ package com.tool.gui.cs;
  */
 public enum Actions {
     Rename,
-    Rename_By_ExIfDateTime,
+    Rename_By_DateTime,
     Retime_By_Name,
+    Retime_By_DateTime,
     Encode_MOV_to_MP4,
     ReEncode_MP4_1080p,
     ;
