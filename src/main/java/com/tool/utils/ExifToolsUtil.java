@@ -81,10 +81,21 @@ public class ExifToolsUtil {
     
     public static class FileAndType{
         public File file;
-        public FileType fileType;
+        public FileType type;
         public FileAndType(File file, FileType fileType) {
             this.file = file;
-            this.fileType = fileType;
+            this.type = fileType;
+        }
+    }
+
+    public static class FileTypeDate{
+        public File     file;
+        public FileType type;
+        public Date     date;
+        public FileTypeDate(File file, FileType type, Date date) {
+            this.file = file;
+            this.type = type;
+            this.date = date;
         }
     }
     
@@ -171,25 +182,29 @@ public class ExifToolsUtil {
         return null;
     }
     
-    public static Supplier<FileAndDate> getExIfFileAndDateTimeAsync(File mediaFile){
-        return () -> new FileAndDate(mediaFile, getExIfDateTime(mediaFile));
-    }
-    
-    public static Supplier<Date> getExIfDateTimeAsync(File mediaFile){
+    public static Supplier<FileTypeDate> getExIfFileTypeDateTimeAsync(File mediaFile){
         return () -> getExIfDateTime(mediaFile);
     }
     
-    public static Date getExIfDateTime(File mediaFile){
+    public static Supplier<FileAndDate> getExIfFileAndDateTimeAsync(File mediaFile){
+        return () -> new FileAndDate(mediaFile, getExIfDateTime(mediaFile).date);
+    }
+    
+    public static Supplier<Date> getExIfDateTimeAsync(File mediaFile){
+        return () -> getExIfDateTime(mediaFile).date;
+    }
+    
+    public static @Nonnull FileTypeDate getExIfDateTime(File mediaFile){
         FileType fileType = FileType.getFileType(mediaFile);
-        if(!fileType.isMedia()) return null;
+        if(!fileType.isMedia()) return new FileTypeDate(mediaFile, fileType, null);
         switch (fileType) {
-            case JPG: return getExIfDateTime_JPG(mediaFile);
-            case PNG: return getExIfDateTime_PNG(mediaFile);
+            case JPG: return new FileTypeDate(mediaFile, fileType, getExIfDateTime_JPG(mediaFile));
+            case PNG: return new FileTypeDate(mediaFile, fileType, getExIfDateTime_PNG(mediaFile));
             case MP4: 
-            case MOV: return getExIfDateTime_MP4_MOV(mediaFile);
-            case MP3: return getExIfDateTime_MP3(mediaFile);
+            case MOV: return new FileTypeDate(mediaFile, fileType, getExIfDateTime_MP4_MOV(mediaFile));
+            case MP3: return new FileTypeDate(mediaFile, fileType, getExIfDateTime_MP3(mediaFile));
         }
-        return null;
+        return new FileTypeDate(mediaFile, fileType, null);
     }
     
     public static Date getExIfDateTime_JPG(File mediaFile){
@@ -642,8 +657,8 @@ public class ExifToolsUtil {
 //        String out = ExecuteUtil.exec(getExIfToolExe().getAbsolutePath(),"-api","QuickTimeUTC","-time:all","-j",file.getAbsolutePath());
 //        System.out.println(out);
         //2025,08,16-14,21,28.JPG
-//        FileType fileType = FileType.getFileType(file.getAbsoluteFile());
-//        System.out.println(fileType);
+//        FileType type = FileType.getFileType(file.getAbsoluteFile());
+//        System.out.println(type);
 //
 //        Date date = getExIfDateTime(file);
 //        System.out.println(date);

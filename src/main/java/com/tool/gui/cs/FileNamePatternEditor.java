@@ -1,11 +1,13 @@
 package com.tool.gui.cs;
 
+import com.tool.utils.FileUtil;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Insets;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,6 +35,34 @@ import javax.swing.text.StyledDocument;
  */
 public class FileNamePatternEditor extends JPanel{
     
+    /** 
+     * Vrací formátovaný název souboru s ohledem na původní název, datum a číslo souboru.
+     * 
+     * @param fileName původní název souboru
+     * @param fileDate datum vytvoření souboru
+     * @param fileNum číslo souboru
+     * @return formátovaný název souboru
+     */
+    public String getFormattedFileName(String fileName, Date fileDate, Integer fileNum) {
+        String pattern = getText();
+        //Prázdá šablonba -> původní název
+        if(pattern.isBlank()) return fileName;
+        String fileExt = FileUtil.getExtension(fileName);
+        for (P p : P.values()) {
+            if(p.type==PType.DATE){
+                pattern = pattern.replace(p.name, new SimpleDateFormat(p.mask).format(fileDate));
+            } else 
+            if(p.type==PType.NUM){
+                pattern = pattern.replace(p.name, String.format(p.mask, fileNum));
+            }
+        }
+        //Zbývající nepodporované tagy odstraníme
+        pattern = pattern.replaceAll("\\*[^*]+\\*", "");
+        //Přidáme příponu souboru
+        pattern += "."+fileExt;
+        return pattern;
+    }
+
     public static enum PType{
         DATE,
         NUM
@@ -49,6 +79,7 @@ public class FileNamePatternEditor extends JPanel{
         static P num1   = new P("*1*"     ,"%01d",PType.NUM ,"e.g.   1");
         static P num2   = new P("*01*"    ,"%02d",PType.NUM ,"e.g.  01");
         static P num3   = new P("*001*"   ,"%03d",PType.NUM ,"e.g. 001");
+        static P num4   = new P("*0001*"  ,"%04d",PType.NUM ,"e.g.0001");
 
         String name;
         String mask;
@@ -67,7 +98,7 @@ public class FileNamePatternEditor extends JPanel{
             return null;
         }
         public static List<P> values(){
-            return List.of(year,month,day,hour,minute,second,num1,num2,num3);
+            return List.of(year,month,day,hour,minute,second,num1,num2,num3,num4);
         }
         @Override
         public String toString() {
