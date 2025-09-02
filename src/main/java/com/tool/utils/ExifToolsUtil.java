@@ -165,19 +165,19 @@ public class ExifToolsUtil {
         return () -> new FileAndType(file,FileType.getFileType(file));
     }
     
-    public static Supplier<Date> setExIfDateTimeAsync(File mediaFile,Date date){
+    public static Supplier<FileTypeDate> setExIfDateTimeAsync(File mediaFile,Date date){
         return () -> setExIfDateTime(mediaFile,date);
     }
     
-    public static Date setExIfDateTime(File mediaFile, Date date){
+    public static FileTypeDate setExIfDateTime(File mediaFile, Date date){
         FileType fileType = FileType.getFileType(mediaFile);
-        if(!fileType.isMedia()) return null;
+        if(!fileType.isMedia()) return new FileTypeDate(mediaFile, fileType, null);
         switch (fileType) {
-            case JPG: return setExIfDateTime_JPG(mediaFile,date);
-            case PNG: return setExIfDateTime_PNG(mediaFile,date);
+            case JPG: return new FileTypeDate(mediaFile, fileType, setExIfDateTime_JPG(mediaFile,date));
+            case PNG: return new FileTypeDate(mediaFile, fileType, setExIfDateTime_PNG(mediaFile,date));
             case MP4: 
-            case MOV: return setExIfDateTime_MP4_MOV(mediaFile,date);
-            case MP3: return setFFmpegDateTime_MP3(mediaFile,date);
+            case MOV: return new FileTypeDate(mediaFile, fileType, setExIfDateTime_MP4_MOV(mediaFile,date));
+            case MP3: return new FileTypeDate(mediaFile, fileType, setFFmpegDateTime_MP3(mediaFile,date));
         }
         return null;
     }
@@ -568,6 +568,10 @@ public class ExifToolsUtil {
         public String format(Date date, String nullValue){
             if(date==null) return nullValue;
             return format(date);
+        }
+        public String format(Date date, File file){
+            if(date==null) return file.getName();
+            return format(date)+"."+FileUtil.getExtension(file.getName());
         }
         public String format(Date date){
             return new SimpleDateFormat(pattern).format(date);

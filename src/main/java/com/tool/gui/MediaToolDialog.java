@@ -26,7 +26,6 @@ import javax.swing.SwingUtilities;
 import static com.tool.gui.cs.Actions.Rename_By_ExIfDateTime;
 import com.tool.utils.StringUtil;
 import java.util.stream.IntStream;
-import javax.swing.UIManager;
 import static com.tool.gui.cs.Actions.Encode_MOV_to_MP4;
 import static com.tool.gui.cs.Actions.ReEncode_MP4_1080p;
 import com.tool.utils.ExifToolsUtil.FileTypeDate;
@@ -237,13 +236,13 @@ public class MediaToolDialog extends javax.swing.JFrame {
             List<FileAndType> fileAndTypes = ExecuteUtil.runsAsync(suppliersFiles,progressBarIncrement);
             List<File> files = fileAndTypes.stream().filter((fat)->fat.type.isMedia()).map((fat)->fat.file).toList();
             String left = files.stream().map((f)->f.getName()).collect(Collectors.joining("\n"));
-            List<Supplier<Date>> suppliers = files.stream().map((file)->ExifToolsUtil.getExIfDateTimeAsync(file)).toList();
-            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
-            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
-            label_Left.setText("Filename");
+            List<Supplier<FileAndDate>> suppliersFADs = files.stream().map((file)->ExifToolsUtil.getExIfFileAndDateTimeAsync(file)).toList();
+            List<FileAndDate> fileAndDates = ExecuteUtil.runsAsync(suppliersFADs,progressBarIncrement);
+            String right = fileAndDates.stream().map((fad)->ExifToolsUtil.DateFormat.fileName.format(fad.date, fad.file)).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename from");
             field_Left.setText(left);
             field_Left.setEditable(false);
-            label_Right.setText("Exif datetime");
+            label_Right.setText("Filename to (Exif datetime)");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
@@ -270,11 +269,11 @@ public class MediaToolDialog extends javax.swing.JFrame {
                 }
             })).toList();
             String left = filesRenamed.stream().map((fad)->fad.file.getName()).collect(Collectors.joining("\n"));
-            String right = filesRenamed.stream().map((fad)->ExifToolsUtil.DateFormat.exiftool.format(fad.date, "<unknown>")).collect(Collectors.joining("\n"));
-            label_Left.setText("Filename");
+            String right = filesRenamed.stream().map((fad)->ExifToolsUtil.DateFormat.exiftool.format(fad.date, fad.file)).collect(Collectors.joining("\n"));
+            label_Left.setText("Filename from");
             field_Left.setText(left);
             field_Left.setEditable(false);
-            label_Right.setText("Exif datetime");
+            label_Right.setText("Filename to (Exif datetime)");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
@@ -287,13 +286,13 @@ public class MediaToolDialog extends javax.swing.JFrame {
             String left = Stream.of(files).map((f)->f.getName()).collect(Collectors.joining("\n"));
             progressBarInit(files.length+1);
             progressBarIncrement();
-            List<Supplier<Date>> suppliers = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfDateTimeAsync(file)).collect(Collectors.toList());
-            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
-            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
+            List<Supplier<FileAndDate>> suppliersFADs = Stream.of(files).map((File file) -> ExifToolsUtil.getExIfFileAndDateTimeAsync(file)).collect(Collectors.toList());
+            List<FileAndDate> fileAndDates = ExecuteUtil.runsAsync(suppliersFADs,progressBarIncrement);
+            String right = fileAndDates.stream().map((fad)->ExifToolsUtil.DateFormat.exiftool.format(fad.date, "<unknown>")).collect(Collectors.joining("\n"));
             label_Left.setText("Filename");
             field_Left.setText(left);
             field_Left.setEditable(false);
-            label_Right.setText("Exif datetime");
+            label_Right.setText("Date from filename");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
@@ -303,13 +302,12 @@ public class MediaToolDialog extends javax.swing.JFrame {
         try(AutoCloseableX lock = awtLocker.open()){
             File[] files = getOperatedFiles(Actions.Retime_By_Name);
             Map<File, Date> filesDates = Stream.of(files).collect(Collectors.toMap((file)->file, (file)->ExifToolsUtil.DateFormat.fileName.parse(FileUtil.removeExtension(file.getName()))));
-            //Stream.of(files).map((file)->).collect(Collectors.toList());
             progressBarInit(files.length+1);
             progressBarIncrement();
-            List<Supplier<Date>> suppliers = filesDates.entrySet().stream().map((entry)->ExifToolsUtil.setExIfDateTimeAsync(entry.getKey(), entry.getValue())).collect(Collectors.toList());
-            List<Date> dates = ExecuteUtil.runsAsync(suppliers,progressBarIncrement);
-            String right = dates.stream().map((date)->ExifToolsUtil.DateFormat.exiftool.format(date, "<unknown>")).collect(Collectors.joining("\n"));
-            label_Right.setText("Exif datetime");
+            List<Supplier<FileTypeDate>> suppliersFTDs = filesDates.entrySet().stream().map((entry)->ExifToolsUtil.setExIfDateTimeAsync(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            List<FileTypeDate> fileTypeDates = ExecuteUtil.runsAsync(suppliersFTDs,progressBarIncrement);
+            String right = fileTypeDates.stream().map((ftd)->ExifToolsUtil.DateFormat.exiftool.format(ftd.date, "<unknown>")).collect(Collectors.joining("\n"));
+            label_Right.setText("Date from filename");
             field_Right.setText(right);
             field_Right.setEditable(false);
             progressBarReset();
@@ -525,19 +523,19 @@ public class MediaToolDialog extends javax.swing.JFrame {
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap()
+                .addGap(14, 14, 14)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addContainerGap())
+                        .addGap(14, 14, 14))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 328, Short.MAX_VALUE)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 325, Short.MAX_VALUE)
                             .addComponent(label_Left))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGap(10, 10, 10)
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(label_Right)
-                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 328, Short.MAX_VALUE))
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 326, Short.MAX_VALUE))
                         .addGap(14, 14, 14))))
         );
         jPanel3Layout.setVerticalGroup(
@@ -549,11 +547,11 @@ public class MediaToolDialog extends javax.swing.JFrame {
                     .addComponent(label_Right))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 687, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 667, Short.MAX_VALUE)
                     .addComponent(jScrollPane1))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                .addGap(10, 10, 10)
+                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(14, 14, 14))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -561,7 +559,7 @@ public class MediaToolDialog extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(15, 15, 15)
+                .addGap(30, 30, 30)
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(field_Actions, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -570,8 +568,8 @@ public class MediaToolDialog extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btn_Play)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(field_FileNamePattern, javax.swing.GroupLayout.DEFAULT_SIZE, 297, Short.MAX_VALUE)
-                .addGap(15, 15, 15))
+                .addComponent(field_FileNamePattern, javax.swing.GroupLayout.DEFAULT_SIZE, 283, Short.MAX_VALUE)
+                .addGap(14, 14, 14))
             .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(

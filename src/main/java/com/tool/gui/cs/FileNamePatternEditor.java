@@ -44,32 +44,43 @@ public class FileNamePatternEditor extends JPanel{
      * @return formátovaný název souboru
      */
     public String getFormattedFileName(String fileName, Date fileDate, Integer fileNum, Integer fileCount) {
-        String pattern = getText();
+        String fileNamePattern = getText();
         //Prázdá šablonba -> původní název
-        if(pattern.isBlank()) return fileName;
+        if(fileNamePattern.isBlank()) return fileName;
         String fileExt = FileUtil.getExtension(fileName);
         for (P p : P.values()) {
             if(p.type==PType.DATE){
-                pattern = pattern.replace(p.name, new SimpleDateFormat(p.mask).format(fileDate));
+                fileNamePattern = fileNamePattern.replace(p.name, new SimpleDateFormat(p.mask).format(fileDate));
             } else 
             if(p.type==PType.NUM){
-                pattern = pattern.replace(p.name, String.format(p.mask, fileNum));
+                fileNamePattern = fileNamePattern.replace(p.name, String.format(p.mask, fileNum));
             } else 
             if(p.type==PType.NUMX){
-                pattern = pattern.replace(p.name, String.format("%0"+fileCount.toString().length()+"d", fileNum));//%01d ... %09d
+                fileNamePattern = fileNamePattern.replace(p.name, String.format("%0"+fileCount.toString().length()+"d", fileNum));//%01d ... %09d
+            } else 
+            if(p.type==PType.EXT){
+                if(p==P.ext){
+                    fileNamePattern = fileNamePattern.replace(p.name, "."+fileExt.toLowerCase());
+                } else 
+                if(p==P.EXT){
+                    fileNamePattern = fileNamePattern.replace(p.name, "."+fileExt.toUpperCase());
+                }
             }
         }
         //Zbývající nepodporované tagy odstraníme
-        pattern = pattern.replaceAll("\\*[^*]+\\*", "");
-        //Přidáme příponu souboru
-        pattern += "."+fileExt;
-        return pattern;
+        fileNamePattern = fileNamePattern.replaceAll("\\*[^*]+\\*", "");
+        //Přidáme příponu souboru pokud neexistuje
+        if(!fileNamePattern.toLowerCase().endsWith(fileExt.toLowerCase())){
+            fileNamePattern += "."+fileExt;
+        }
+        return fileNamePattern;
     }
 
     public static enum PType{
         DATE,
         NUM,
         NUMX,
+        EXT,
         ;
     }
     
@@ -81,11 +92,13 @@ public class FileNamePatternEditor extends JPanel{
         static P hour   = new P("*hour*"  ,"HH"  ,PType.DATE,"e.g. 23");
         static P minute = new P("*minute*","mm"  ,PType.DATE,"e.g. 59");
         static P second = new P("*second*","ss"  ,PType.DATE,"e.g. 00");
-        static P num1   = new P("*1*"     ,"%01d",PType.NUM ,"e.g.   1");
-        static P num2   = new P("*01*"    ,"%02d",PType.NUM ,"e.g.  01");
-        static P num3   = new P("*001*"   ,"%03d",PType.NUM ,"e.g. 001");
-        static P num4   = new P("*0001*"  ,"%04d",PType.NUM ,"e.g.0001");
-        static P numX   = new P("*number*",null  ,PType.NUMX,"e.g.1 11 111");
+        static P num1   = new P("*n*"     ,"%01d",PType.NUM ,"e.g.    1,    9");
+        static P num2   = new P("*nn*"    ,"%02d",PType.NUM ,"e.g.   01,   99");
+        static P num3   = new P("*nnn*"   ,"%03d",PType.NUM ,"e.g.  001,  999");
+        static P num4   = new P("*nnnn*"  ,"%04d",PType.NUM ,"e.g. 0001, 9999");
+        static P numX   = new P("*number*",null  ,PType.NUMX,"e.g. 1, 11, 111");
+        static P ext    = new P("*.ext*"  ,null  ,PType.EXT, "e.g. .jpg, .mp4, .png");
+        static P EXT    = new P("*.EXT*"  ,null  ,PType.EXT, "e.g. .JPG, .MP4, .PNG");
 
         String name;
         String mask;
@@ -104,7 +117,7 @@ public class FileNamePatternEditor extends JPanel{
             return null;
         }
         public static List<P> values(){
-            return List.of(year,month,day,hour,minute,second,num1,num2,num3,num4,numX);
+            return List.of(year,month,day,hour,minute,second,num1,num2,num3,num4,numX,ext,EXT);
         }
         @Override
         public String toString() {
@@ -137,8 +150,8 @@ public class FileNamePatternEditor extends JPanel{
         // Stylování
         StyledDocument doc = textPane.getStyledDocument();
         StyleContext sc = StyleContext.getDefaultStyleContext();
-        AttributeSet redAttr = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.RED);
-        AttributeSet blueAttr = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.BLUE);
+        AttributeSet redAttr     = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.RED  );
+        AttributeSet blueAttr    = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.BLUE );
         AttributeSet defaultAttr = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.BLACK);
         
         // Filtr pro odstranění nových řádků a zvýraznění syntaxe
@@ -166,6 +179,11 @@ public class FileNamePatternEditor extends JPanel{
             public void replace(DocumentFilter.FilterBypass fb, int offset, int length, String string, AttributeSet attrs) throws BadLocationException {
                 string = string.replaceAll("\\R", "");
                 super.replace(fb, offset, length, string, attrs);
+                highlight();
+            }
+            @Override
+            public void remove(DocumentFilter.FilterBypass fb, int offset, int length) throws BadLocationException {
+                super.remove(fb, offset, length);
                 highlight();
             }
         });
