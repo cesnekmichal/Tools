@@ -39,13 +39,13 @@ public class ExifToolsUtilTest {
             ExifToolsUtil.FileType fileType = ExifToolsUtil.FileType.getFileType(sample_file);
             assertNotEquals(fileType.UNKNOWN, fileType, "UNKNOWN FileType:\n"+sample_file);
             
-            Date date = ExifToolsUtil.getExIfDateTime(sample_file);
+            Date date = ExifToolsUtil.getExIfDateTime(sample_file).date;
             assertNotNull(date, "Date not found:\n"+sample_file);
             
             File sample_copy = new File("run/temp/copy."+FileUtil.getExtension(sample_file.getName()));
             sample_copy.mkdirs();
             Files.copy(sample_file.toPath(), sample_copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            Date date_ = ExifToolsUtil.setExIfDateTime(sample_copy, new Date());
+            Date date_ = ExifToolsUtil.setExIfDateTime(sample_copy, new Date()).date;
             assertNotNull(date_, "Unable to setExIfDateTime:\n"+sample_file);
         }
     }
