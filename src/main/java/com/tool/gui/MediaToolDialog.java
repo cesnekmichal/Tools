@@ -26,9 +26,9 @@ import javax.swing.SwingUtilities;
 import static com.tool.gui.cs.Actions.Rename_By_ExIfDateTime;
 import com.tool.utils.StringUtil;
 import java.util.stream.IntStream;
-import javax.swing.UIManager;
 import static com.tool.gui.cs.Actions.Encode_MOV_to_MP4;
 import static com.tool.gui.cs.Actions.ReEncode_MP4_1080p;
+import java.awt.Taskbar;
 
 /** 
  * Třída MenuDialog představuje dialogové okno pro provádění různých akcí na mediálních souborech.
@@ -441,13 +441,32 @@ public class MediaToolDialog extends javax.swing.JFrame {
     }
     
     private void progressBarRepaint_Later(){
-        SwingUtilities.invokeLater(()->progressBarRepaint());
+        SwingUtilities.invokeLater(()->progressBarRepaint_inAWT());
     }
-    private void progressBarRepaint(){
+    
+    private void progressBarRepaint_inAWT(){
         progressBar.setMinimum(0);
         progressBar.setMaximum(progressBarMaxValue.get());
         progressBar.setValue  (progressBarValue.get());
         progressBar.repaint();
+        //TaskBar - progressbar
+        {
+            // Získání instance Taskbar
+            final Taskbar taskbar = Taskbar.getTaskbar();
+            // Kontrola, zda je funkce podporována
+            if (taskbar.isSupported(Taskbar.Feature.PROGRESS_STATE_WINDOW)) {
+                // Nastavení počátečního stavu
+                taskbar.setWindowProgressState(MediaToolDialog.this, Taskbar.State.NORMAL);
+                if(progressBarValue.get()==0){
+                    taskbar.setWindowProgressState(MediaToolDialog.this, Taskbar.State.OFF);
+                    System.out.println("OFF");
+                } else {
+                    float onePercentValue = progressBarMaxValue.get()/100f;
+                    float percent = onePercentValue==0f ? 0f : progressBarValue.get()/(onePercentValue);
+                    taskbar.setWindowProgressValue(MediaToolDialog.this, (int)percent);
+                }
+            }
+        }
     }
     
     /**
