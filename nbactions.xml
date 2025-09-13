@@ -199,7 +199,7 @@
                 <exec.vmArgs>-Dstderr.encoding=UTF-8  -Dstdout.encoding=UTF-8</exec.vmArgs>
             </properties>
             <activatedProfiles>
-                <activatedProfile>build-wi-deps</activatedProfile>
+                <activatedProfile>build__MediaTool-full_jar__with_deps</activatedProfile>
             </activatedProfiles>
         </action>
         <action>
